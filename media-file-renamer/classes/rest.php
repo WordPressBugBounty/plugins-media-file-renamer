@@ -542,99 +542,116 @@ class Meow_MFRH_Rest
 	 * @return array
 	 */
 	function get_media_status(
-		$skip = 0,
-		$limit = 10,
-		$filterBy = 'pending',
-		$orderBy = 'post_title',
-		$order = 'asc',
-		$search = null
-	) {
-		global $wpdb;
+        $skip = 0,
+        $limit = 10,
+        $filterBy = 'pending',
+        $orderBy = 'post_title',
+        $order = 'asc',
+        $search = null,
+        $hide_locked = true,
+    ) {
+        global $wpdb;
 
-		$havingSql = '';
-		if ( $filterBy === 'pending' ) {
-			$havingSql = 'HAVING pending IS NOT NULL';
-		} else if ( $filterBy === 'renamed' ) {
-			$havingSql = 'HAVING original_filename IS NOT NULL';
-		} else if ( $filterBy === 'unrenamed' ) {
-			$havingSql = 'HAVING original_filename IS NULL';
-		} else if ( $filterBy === 'locked' ) {
-			$havingSql = 'HAVING locked IS NOT NULL';
-		} else if ( $filterBy === 'unlocked' ) {
-			$havingSql = 'HAVING locked IS NULL';
-		}
+        // Initialize an array to hold HAVING conditions
+        $havingConditions = array();
 
-		$orderSql = 'ORDER BY p.ID DESC';
-		if ( $orderBy === 'post_title' ) {
-			$orderSql = 'ORDER BY post_title ' . ( $order === 'asc' ? 'ASC' : 'DESC' );
-		} else if ( $orderBy === 'post_parent' ) {
-			$orderSql = 'ORDER BY post_parent ' . ( $order === 'asc' ? 'ASC' : 'DESC' );
-		} else if ( $orderBy === 'current_filename' ) {
-			$orderSql = 'ORDER BY current_filename ' . ( $order === 'asc' ? 'ASC' : 'DESC' );
-		}
+        // Add conditions based on the filter
+        if ( $filterBy === 'pending' ) {
+            $havingConditions[] = 'pending IS NOT NULL';
+        } else if ( $filterBy === 'renamed' ) {
+            $havingConditions[] = 'original_filename IS NOT NULL';
+        } else if ( $filterBy === 'unrenamed' ) {
+            $havingConditions[] = 'original_filename IS NULL';
+        } else if ( $filterBy === 'locked' ) {
+            $havingConditions[] = 'locked IS NOT NULL';
+        } else if ( $filterBy === 'unlocked' ) {
+            $havingConditions[] = 'locked IS NULL';
+        }
 
-		$whereSql = '';
-		if ( $search ) {
-			$searchValue = '%' . $wpdb->esc_like( $search ) . '%';
-			$whereSql = $wpdb->prepare( "AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)", $searchValue, $searchValue );
-		}
+        // Hide locked files in other filters if hide_locked is true
+        if ( $hide_locked && $filterBy !== 'locked' && $filterBy !== 'unlocked' ) {
+            $havingConditions[] = 'locked IS NULL';
+        }
 
-		$innerJoinCondition = '';
-		if ( $this->core->featured_only ) {
-			$innerJoinCondition = "INNER JOIN $wpdb->postmeta pmm ON pmm.meta_value = p.ID AND pmm.meta_key = '_thumbnail_id'";
-		} else {
-			if ( $this->core->images_only ) {
-				$images_mime_types = implode( "','", $this->core->images_mime_types );
-				$whereSql .= "$whereSql AND p.post_mime_type IN ('$images_mime_types')";
-			}
-		}
+        if ( count( $havingConditions ) > 0 ) {
+            $havingSql = 'HAVING ' . implode( ' AND ', $havingConditions );
+        } else {
+            $havingSql = '';
+        }
 
-		$request = $wpdb->prepare( "
-			SELECT p.ID, p.post_title, p.post_parent, p.post_content AS image_description, p.post_excerpt AS image_caption,
-				MAX(CASE WHEN pm.meta_key = '_wp_attached_file' THEN pm.meta_value END) AS current_filename,
-				MAX(CASE WHEN pm.meta_key = '_original_filename' THEN pm.meta_value END) AS original_filename,
-				MAX(CASE WHEN pm.meta_key = '_wp_attachment_metadata' THEN pm.meta_value END) AS metadata,
-				MAX(CASE WHEN pm.meta_key = '_wp_attachment_image_alt' THEN pm.meta_value END) AS image_alt,
-				MAX(CASE WHEN pm.meta_key = '_require_file_renaming' THEN pm.meta_value END) AS pending,
-				MAX(CASE WHEN pm.meta_key = '_manual_file_renaming' THEN pm.meta_value END) AS locked,
-				MAX(CASE WHEN pm.meta_key = '_mfrh_history' THEN pm.meta_value END) AS history
-			FROM (
-				SELECT p.ID,
-					MAX(CASE WHEN pm.meta_key = '_original_filename' THEN pm.meta_value END) AS original_filename,
-					MAX(CASE WHEN pm.meta_key = '_require_file_renaming' THEN pm.meta_value END) AS pending,
-					MAX(CASE WHEN pm.meta_key = '_manual_file_renaming' THEN pm.meta_value END) AS locked
-				FROM $wpdb->posts p
-				$innerJoinCondition
-				JOIN $wpdb->postmeta pm ON pm.post_id = p.ID
-				WHERE p.post_type = 'attachment'
-					AND p.post_status = 'inherit'
-					$whereSql
-				GROUP BY p.ID
-				$havingSql
-			) AS filtered_posts
-			JOIN $wpdb->posts p ON p.ID = filtered_posts.ID
-			JOIN $wpdb->postmeta pm ON pm.post_id = p.ID
-			WHERE (pm.meta_key = '_wp_attached_file'
-					OR pm.meta_key = '_original_filename'
-					OR pm.meta_key = '_wp_attachment_metadata'
-					OR pm.meta_key = '_wp_attachment_image_alt'
-					OR pm.meta_key = '_require_file_renaming'
-					OR pm.meta_key = '_manual_file_renaming'
-					OR pm.meta_key = '_mfrh_history')
-			GROUP BY p.ID
-			$orderSql
-			LIMIT %d, %d
-		", $skip, $limit );
+        $orderSql = 'ORDER BY p.ID DESC';
+        if ( $orderBy === 'post_title' ) {
+            $orderSql = 'ORDER BY post_title ' . ( $order === 'asc' ? 'ASC' : 'DESC' );
+        } else if ( $orderBy === 'post_parent' ) {
+            $orderSql = 'ORDER BY post_parent ' . ( $order === 'asc' ? 'ASC' : 'DESC' );
+        } else if ( $orderBy === 'current_filename' ) {
+            $orderSql = 'ORDER BY current_filename ' . ( $order === 'asc' ? 'ASC' : 'DESC' );
+        }
 
-		$entries = $wpdb->get_results( $request );
+        $whereSql = '';
+        if ( $search ) {
+            $searchValue = '%' . $wpdb->esc_like( $search ) . '%';
+            $whereSql = $wpdb->prepare( "AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)", $searchValue, $searchValue );
+        }
 
-		foreach ( $entries as $entry ) {
-			$this->core->consolidate_media_status( $entry );
-			$entry->history = unserialize( $entry->history );
-		}
+        $innerJoinCondition = '';
+        if ( $this->core->featured_only ) {
+            $innerJoinCondition = "INNER JOIN $wpdb->postmeta pmm ON pmm.meta_value = p.ID AND pmm.meta_key = '_thumbnail_id'";
+        } else {
+            if ( $this->core->images_only ) {
+                $images_mime_types = implode( "','", $this->core->images_mime_types );
+                $whereSql .= "$whereSql AND p.post_mime_type IN ('$images_mime_types')";
+            }
+        }
 
-		return $entries;
-	}
+        $request = $wpdb->prepare( "
+            SELECT p.ID, p.post_title, p.post_parent, p.post_content AS image_description, p.post_excerpt AS image_caption,
+                MAX(CASE WHEN pm.meta_key = '_wp_attached_file' THEN pm.meta_value END) AS current_filename,
+                MAX(CASE WHEN pm.meta_key = '_original_filename' THEN pm.meta_value END) AS original_filename,
+                MAX(CASE WHEN pm.meta_key = '_wp_attachment_metadata' THEN pm.meta_value END) AS metadata,
+                MAX(CASE WHEN pm.meta_key = '_wp_attachment_image_alt' THEN pm.meta_value END) AS image_alt,
+                MAX(CASE WHEN pm.meta_key = '_require_file_renaming' THEN pm.meta_value END) AS pending,
+                MAX(CASE WHEN pm.meta_key = '_manual_file_renaming' THEN pm.meta_value END) AS locked,
+                MAX(CASE WHEN pm.meta_key = '_mfrh_history' THEN pm.meta_value END) AS history
+            FROM (
+                SELECT p.ID,
+                    MAX(CASE WHEN pm.meta_key = '_original_filename' THEN pm.meta_value END) AS original_filename,
+                    MAX(CASE WHEN pm.meta_key = '_require_file_renaming' THEN pm.meta_value END) AS pending,
+                    MAX(CASE WHEN pm.meta_key = '_manual_file_renaming' THEN pm.meta_value END) AS locked
+                FROM $wpdb->posts p
+                $innerJoinCondition
+                JOIN $wpdb->postmeta pm ON pm.post_id = p.ID
+                WHERE p.post_type = 'attachment'
+                    AND p.post_status = 'inherit'
+                    $whereSql
+                GROUP BY p.ID
+                $havingSql
+            ) AS filtered_posts
+            JOIN $wpdb->posts p ON p.ID = filtered_posts.ID
+            JOIN $wpdb->postmeta pm ON pm.post_id = p.ID
+            WHERE (pm.meta_key = '_wp_attached_file'
+                    OR pm.meta_key = '_original_filename'
+                    OR pm.meta_key = '_wp_attachment_metadata'
+                    OR pm.meta_key = '_wp_attachment_image_alt'
+                    OR pm.meta_key = '_require_file_renaming'
+                    OR pm.meta_key = '_manual_file_renaming'
+                    OR pm.meta_key = '_mfrh_history')
+            GROUP BY p.ID
+            $orderSql
+            LIMIT %d, %d
+        ", $skip, $limit );
+
+        $entries = $wpdb->get_results( $request );
+
+        foreach ( $entries as $entry ) {
+            $this->core->consolidate_media_status( $entry );
+            if ( !is_null( $entry->history ) ) {
+                $entry->history = unserialize( $entry->history );
+            }
+        }
+
+        return $entries;
+    }
 
 	function rest_media( $request ) {
 		$limit = trim( $request->get_param('limit') );
@@ -643,7 +660,10 @@ class Meow_MFRH_Rest
 		$orderBy = trim( $request->get_param('orderBy') );
 		$order = trim( $request->get_param('order') );
 		$search = trim( $request->get_param('search') );
-		$entries = $this->get_media_status( $skip, $limit, $filterBy, $orderBy, $order, $search );
+		
+		$hide_locked = $this->core->get_option( 'hide_locked', true );
+
+		$entries = $this->get_media_status( $skip, $limit, $filterBy, $orderBy, $order, $search, $hide_locked );
 		
 		return new WP_REST_Response( [ 'success' => true, 'data' => $entries ], 200 );
 	}

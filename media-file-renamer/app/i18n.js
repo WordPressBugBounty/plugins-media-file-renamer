@@ -302,6 +302,8 @@ i18n.SETTINGS = {
   MANUAL_RENAME: __( 'After Manual Rename', 'media-file-renamer' ),
   MANUAL_RENAME_DESCRIPTION: __( 'This is enabled by default; when you rename a media manually, it normally means that you want to fix the filename by yourself.', 'media-file-renamer' ),
   LOCK: __( 'Lock', 'media-file-renamer' ),
+  HIDE_LOCKED: __( 'Hide Locked', 'media-file-renamer' ),
+  HIDE_LOCKED_DESCRIPTION: __( 'Hide the locked files in the Dashboard tabs ( They will be visible only in the Locked section ).', 'media-file-renamer' ),
   RESET_METADATA: __( 'Reset Metadata', 'media-file-renamer' ),
   RESET_OPTIONS: __( 'Reset Options', 'media-file-renamer' ),
   EXPORT_OPTIONS: __( 'Export Options', 'media-file-renamer' ),

@@ -43,6 +43,7 @@ define( 'MFRH_OPTIONS', [
 	'featured_only' => false,
 	'posts_per_page' => 10,
 	'lock' => false,
+	'hide_locked' => true,
 	'autolock_auto' => false,
 	'autolock_manual' => true,
 	'delay' => 100,
@@ -1007,19 +1008,14 @@ SQL;
 
 	function core_base_for_rename( $id , $skipped_methods = [] )
 	{
-		$methods = [
-			$this->method,
-			$this->method_secondary,
-			$this->method_tertiary,
-		];
-
+		$base_for_rename = null;
+		$methods = [ $this->method, $this->method_secondary, $this->method_tertiary ];
+		
 		foreach ( $methods as $method ) {
-
 			if ( in_array( $method, $skipped_methods ) ) {
 				$this->log( "✒️ Method " . $method . " was skipped." );
 				continue;
 			}
-
 			switch ( $method ) {
 				case 'none':
 					$base_for_rename = null;
@@ -1035,16 +1031,15 @@ SQL;
 					$this->log( "⚠️ Method " . $method . " not found." );
 					break;
 			}
-
-			if ( !is_null($base_for_rename) ) {
+			if ( !is_null( $base_for_rename ) ) {
 				$this->last_used_method = $method;
 				break;
-			} else {
+			}
+			else {
 				$this->log( "✒️ Method " . $method . " returned null. Trying next method." );
 			}
 		}
-
-		return html_entity_decode( $base_for_rename );
+		return !is_null($base_for_rename) ? html_entity_decode($base_for_rename) : '';
 	}
 
 	function check_text() {
