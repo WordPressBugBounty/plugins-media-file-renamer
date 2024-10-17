@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 5.9.9
+Stable tag: 6.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,7 +56,7 @@ If you only need an simple field in order to modify the filename, you can also t
 
 == Changelog ==
 
-= 5.9.9 (2024/10/17) =
+= 6.0.0 (2024/10/18) =
 * Add: New "Hide Locked" option.
 * Fix: Toggle Lock works better.
 * Update: Enhancement related to warnings, and server-related issues.

@@ -548,7 +548,7 @@ class Meow_MFRH_Rest
         $orderBy = 'post_title',
         $order = 'asc',
         $search = null,
-        $hide_locked = true,
+        $hide_locked = true
     ) {
         global $wpdb;
 
