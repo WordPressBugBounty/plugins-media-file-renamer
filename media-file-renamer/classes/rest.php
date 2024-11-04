@@ -78,6 +78,16 @@ class Meow_MFRH_Rest
 					'order' => array( 'required' => false ),
 				)
 			) );
+
+			register_rest_route( $this->namespace, '/media/id', array(
+				'methods' => 'GET',
+				'permission_callback' => array( $this->core, 'can_access_features' ),
+				'callback' => array( $this, 'rest_media_id' ),
+				'args' => array(
+					'filterBy' => array( 'required' => false, 'default' => 'all' ),
+				)
+			) );
+
 			register_rest_route( $this->namespace, '/uploads_directory_hierarchy', array(
 				'methods' => 'GET',
 				'permission_callback' => array( $this->core, 'can_access_features' ),
@@ -242,7 +252,7 @@ class Meow_MFRH_Rest
 		return new WP_REST_Response( [ 'success' => true, 'data' => $ids ], 200 );
 	}
 
-	function rest_get_all_post_ids() {
+	function rest_get_all_post_ids(  ) {
 		global $wpdb;
 		$ids = $wpdb->get_col( "SELECT p.ID FROM $wpdb->posts p
 			WHERE p.post_status NOT IN ('inherit', 'trash', 'auto-draft')
@@ -531,6 +541,80 @@ class Meow_MFRH_Rest
 	}
 
 	/**
+	 * Simply get only the media IDs with a simple and fast query.
+	 *
+	 * @param integer      $skip
+	 * @param integer      $limit
+	 * @param string       $filterBy
+	 * @param string|null  $search
+	 * @param boolean      $hide_locked
+	 * @return array
+	 */
+	function get_media_ids( $skip, $limit, $filterBy, $search = null, $hide_locked = true )
+	{
+		global $wpdb;
+
+		// Initialize query parts
+		$joins   = array();
+		$wheres  = array();
+
+		// Base WHERE conditions
+		$wheres[] = "p.post_type = 'attachment'";
+		$wheres[] = "p.post_status = 'inherit'";
+
+		// Handle featured_only and images_only options
+		if ( $this->core->featured_only ) {
+			$joins[] = "INNER JOIN {$wpdb->postmeta} pmm ON pmm.meta_value = p.ID AND pmm.meta_key = '_thumbnail_id'";
+		} elseif ( $this->core->images_only ) {
+			$images_mime_types = implode( "','", $this->core->images_mime_types );
+			$wheres[] = "p.post_mime_type IN ('$images_mime_types')";
+		}
+
+		// Depending on filterBy, add necessary joins and conditions
+		if ( $filterBy === 'pending' ) {
+			$joins[] = "INNER JOIN {$wpdb->postmeta} pm1 ON pm1.post_id = p.ID AND pm1.meta_key = '_require_file_renaming' AND pm1.meta_value IS NOT NULL";
+		} elseif ( $filterBy === 'renamed' ) {
+			$joins[] = "INNER JOIN {$wpdb->postmeta} pm1 ON pm1.post_id = p.ID AND pm1.meta_key = '_original_filename' AND pm1.meta_value IS NOT NULL";
+		} elseif ( $filterBy === 'unrenamed' ) {
+			$joins[]  = "LEFT JOIN {$wpdb->postmeta} pm1 ON pm1.post_id = p.ID AND pm1.meta_key = '_original_filename'";
+			$wheres[] = "pm1.meta_value IS NULL";
+		} elseif ( $filterBy === 'locked' ) {
+			$joins[] = "INNER JOIN {$wpdb->postmeta} pm1 ON pm1.post_id = p.ID AND pm1.meta_key = '_manual_file_renaming' AND pm1.meta_value IS NOT NULL";
+		} elseif ( $filterBy === 'unlocked' ) {
+			$joins[]  = "LEFT JOIN {$wpdb->postmeta} pm1 ON pm1.post_id = p.ID AND pm1.meta_key = '_manual_file_renaming'";
+			$wheres[] = "pm1.meta_value IS NULL";
+		}
+
+		// Hide locked files if hide_locked is true
+		if ( $hide_locked && $filterBy !== 'locked' && $filterBy !== 'unlocked' ) {
+			$joins[]  = "LEFT JOIN {$wpdb->postmeta} pm2 ON pm2.post_id = p.ID AND pm2.meta_key = '_manual_file_renaming'";
+			$wheres[] = "pm2.meta_value IS NULL";
+		}
+
+		// Handle search functionality
+		if ( $search ) {
+			$search_value = '%' . $wpdb->esc_like( $search ) . '%';
+			$joins[]      = "LEFT JOIN {$wpdb->postmeta} pm_search ON pm_search.post_id = p.ID";
+			$wheres[]     = $wpdb->prepare( "(p.post_title LIKE %s OR pm_search.meta_value LIKE %s)", $search_value, $search_value );
+		}
+
+		// Build the query
+		$query = "SELECT DISTINCT p.ID FROM {$wpdb->posts} p";
+		if ( ! empty( $joins ) ) {
+			$query .= ' ' . implode( ' ', $joins );
+		}
+		if ( ! empty( $wheres ) ) {
+			$query .= ' WHERE ' . implode( ' AND ', $wheres );
+		}
+		$query .= $wpdb->prepare( " LIMIT %d, %d", $skip, $limit );
+
+		// Retrieve and return the IDs
+		$ids = $wpdb->get_col( $query );
+
+		return $ids;
+	}
+
+	/**
 	 * Get the status for many Media IDs.
 	 *
 	 * @param integer $skip
@@ -652,6 +736,18 @@ class Meow_MFRH_Rest
 
         return $entries;
     }
+
+	function rest_media_id( $request ) {
+		$filterBy = trim( $request->get_param( 'filterBy' ) );
+		$skip     = trim( $request->get_param( 'skip' ) );
+		$limit    = trim( $request->get_param( 'limit' ) );
+		$search   = trim( $request->get_param( 'search' ) );
+	
+		$hide_locked = $this->core->get_option( 'hide_locked', true );
+	
+		$entries = $this->get_media_ids( $skip, $limit, $filterBy, $search, $hide_locked );
+		return new WP_REST_Response( [ 'success' => true, 'data' => $entries ], 200 );
+	}
 
 	function rest_media( $request ) {
 		$limit = trim( $request->get_param('limit') );

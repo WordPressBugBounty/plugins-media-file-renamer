@@ -485,66 +485,116 @@ class Meow_MFRH_Engine {
 		return $post;
 	}
 
-	function rename_alternative_image_formats( $old_filepath, $old_ext, $new_finepath, $new_ext,
-		$case_issue = false, $force_rename = false, $post = null ) {
+	function rename_alternative_image_formats( $old_filepath, $old_ext, $new_filepath, $new_ext, $case_issue = false, $force_rename = false, $post = null ) {
 		$isWebP = ( $old_ext === 'webp' || $new_ext === 'webp' );
 		$isAvif = ( $old_ext === 'avif' || $new_ext === 'avif' );
-
+		$isPdf  = ( $old_ext === 'pdf' );
+	
 		if ( !$isWebP ) {
-			$this->rename_alternative_image_format( '.webp', $old_filepath, $old_ext, $new_finepath,
-				$new_ext, $case_issue, $force_rename, $post );
+			$this->rename_alternative_image_format( '.webp', $old_filepath, $old_ext, $new_filepath, $new_ext, $case_issue, $force_rename, $post );
 		}
 		if ( !$isAvif ) {
-			$this->rename_alternative_image_format( '.avif', $old_filepath, $old_ext, $new_finepath,
-				$new_ext, $case_issue, $force_rename, $post );
+			$this->rename_alternative_image_format( '.avif', $old_filepath, $old_ext, $new_filepath, $new_ext, $case_issue, $force_rename, $post );
+		}
+		if ( $isPdf ) {
+			$this->rename_alternative_image_format( '.jpg', $old_filepath, $old_ext, $new_filepath, $new_ext, $case_issue, $force_rename, $post );
 		}
 	}
 
-
 	function rename_alternative_image_format(
-        $format_ext,
-        $old_filepath,
-        $old_ext,
-        $new_finepath,
-        $new_ext,
-        $case_issue,
-        $force_rename,
-        $post = null
-    ) {
-		// Two WebP patterns exist: filename.format and filename.ext.format
-		if ( $old_ext === 'pdf' & $new_ext === 'pdf' ) {
-			$old_ext = 'jpg';
-			$new_ext = 'jpg';
+		$format_ext,
+		$old_filepath,
+		$old_ext,
+		$new_filepath,
+		$new_ext,
+		$case_issue,
+		$force_rename,
+		$post = null
+	) {
+		
+		// Special handling for PDFs
+		if ( $old_ext === 'pdf' && $format_ext === '.jpg' ) {
+			$old_ext_for_replace = 'pdf';
+			$new_ext_for_replace = 'pdf';
+		} else {
+			$old_ext_for_replace = $old_ext;
+			$new_ext_for_replace = $new_ext;
 		}
-
+	
+		// Construct file paths for renaming
 		$alternatives = [
 			[
-				'old' => $this->core->str_replace( '.' . $old_ext, $format_ext, $old_filepath ),
-				'new' => $this->core->str_replace( '.' . $new_ext, $format_ext, $new_finepath ),
+				'old' => $this->core->str_replace( '.' . $old_ext_for_replace, $format_ext, $old_filepath ),
+				'new' => $this->core->str_replace( '.' . $new_ext_for_replace, $format_ext, $new_filepath ),
 			],
 			[
-				'old' => $this->core->str_replace( '.' . $old_ext, '.' . $old_ext . $format_ext, $old_filepath ),
-				'new' => $this->core->str_replace( '.' . $new_ext, '.' . $new_ext . $format_ext, $new_finepath ),
+				'old' => $this->core->str_replace( '.' . $old_ext_for_replace, '.' . $old_ext_for_replace . $format_ext, $old_filepath ),
+				'new' => $this->core->str_replace( '.' . $new_ext_for_replace, '.' . $new_ext_for_replace . $format_ext, $new_filepath ),
 			],
 		];
+	
+		// Additional patterns for PDF thumbnails
+		if ( $old_ext === 'pdf' && $format_ext === '.jpg' ) {
 
-		// // TODO: Without this check, the code following actually doesn't work with PDF Thumbnails (because the old_ext and new_ext doesn't correspond to jpg, which is used for the thumbnails in the PDF case, and not .pdf). In fact, the code after that should be rewritten.
-		// if ( !preg_match( '/\.webp$/', $old_filepath ) ) {
-		// 	return;
-		// }
+			// Retrieve the attachment ID from $post
+			$attachment_id = null;
+			if ( $post ) {
+				if ( is_numeric( $post ) ) {
+					$attachment_id = $post;
+				} elseif ( is_array( $post ) && isset( $post['ID'] ) ) {
+					$attachment_id = $post['ID'];
+				} elseif ( is_object( $post ) && isset( $post->ID ) ) {
+					$attachment_id = $post->ID;
+				}
+			}
+		
+			// Get the attachment metadata
+			$meta = null;
+			if ( $attachment_id ) {
+				$meta = wp_get_attachment_metadata( $attachment_id );
+			}
 
+
+			$noext_old_filename = pathinfo( $old_filepath, PATHINFO_FILENAME );
+			$noext_new_filename = pathinfo( $new_filepath, PATHINFO_FILENAME );
+	
+			// Thumbnails include '-pdf' in the filename
+			$alternatives[] = [
+				'old' => $this->core->str_replace( $noext_old_filename . '.pdf', $noext_old_filename . '-pdf' . $format_ext, $old_filepath ),
+				'new' => $this->core->str_replace( $noext_new_filename . '.pdf', $noext_new_filename . '-pdf' . $format_ext, $new_filepath ),
+			];
+	
+			// Retrieve sizes from metadata
+			if ( isset( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
+				foreach ( $meta['sizes'] as $size => $meta_size ) {
+					if ( isset( $meta_size['file'] ) ) {
+						// Extract the size suffix from the filename
+						$meta_size_filename = $meta_size['file'];
+						// Remove base filename and extension to get size suffix
+						$size_suffix = str_replace( [ $noext_old_filename . '-pdf-', $format_ext ], '', $meta_size_filename );
+	
+						$alternatives[] = [
+							'old' => $this->core->str_replace( $noext_old_filename . '.pdf', $noext_old_filename . '-pdf-' . $size_suffix . $format_ext, $old_filepath ),
+							'new' => $this->core->str_replace( $noext_new_filename . '.pdf', $noext_new_filename . '-pdf-' . $size_suffix . $format_ext, $new_filepath ),
+						];
+					}
+				}
+			}
+		}
+	
+		// Renaming logic remains the same
 		foreach ( $alternatives as $alternative ) {
 			$regex = '/' . str_replace( ".", "\.", $format_ext ) . '$/';
 			$is_alternative = preg_match( $regex, $alternative['old'] );
-			$old_file_ok = $is_alternative && file_exists( $alternative['old'] );
+			$old_file_ok = file_exists( $alternative['old'] );
 			$new_file_ok = ( !file_exists( $alternative['new'] ) ) || is_writable( $alternative['new'] );
-
+	
 			if ( $old_file_ok && $new_file_ok ) {
 				if ( !$this->rename_file( $alternative['old'], $alternative['new'], $case_issue ) && !$force_rename ) {
-					$this->core->log( "🚫 Optimized Image $alternative[old] ➡️ $alternative[new]" );
+					$this->core->log( "🚫 PDF Thumbnail {$alternative['old']} ➡️ {$alternative['new']}" );
 					return $post;
 				}
-				$this->core->log( "✅ Optimized Image $alternative[old] ➡️ $alternative[new]" );
+				$this->core->log( "✅ PDF Thumbnail {$alternative['old']} ➡️ {$alternative['new']}" );
 				do_action( 'mfrh_path_renamed', $post, $alternative['old'], $alternative['new'] );
 			}
 		}

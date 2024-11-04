@@ -37,6 +37,7 @@ define( 'MFRH_OPTIONS', [
 
 	'filename_prefix' => '',
 	'filename_suffix' => '',
+	'filename_replace' => [],
 
 	'acf_field_name' => false,
 	'images_only' => false,
@@ -168,6 +169,11 @@ class Meow_MFRH_Core {
 		if ( $this->get_option( 'filename_prefix', '' ) != '' || $this->get_option( 'filename_suffix', '' ) != '' ) {
 			add_filter( 'mfrh_new_filename', [ $this, 'add_prefix_suffix' ], 10, 3 );
 		}
+
+		if ( !empty( $this->get_option( 'filename_replace', [] ) ) ) {
+			add_filter( 'mfrh_new_filename', [ $this, 'replace_filename' ], 10, 3 );
+		}
+		
 
 		// Only for REST
 		if ( $this->is_rest ) {
@@ -801,6 +807,21 @@ SQL;
 		return $new;
 	}
 
+	function replace_filename( $new, $old, $post ) {
+		$replacements = $this->get_option( 'filename_replace', [] );
+
+		if ( !empty( $replacements ) ) {
+			foreach ( $replacements as $replacement ) {
+				$replacement = explode( '=>', $replacement );
+				if ( count( $replacement ) == 2 ) {
+					$new = str_replace( $replacement[0], $replacement[1], $new );
+				}
+			}
+		}
+
+		return $new;
+	}
+
 	// Return false if everything is fine, otherwise return true with an output
 	// which details the conditions and results about the renaming.
 	function check_attachment( $post, &$output = array(), $manual_filename = null, $force_rename = false, $preview = true, $skipped_methods = [] ) {
@@ -1065,18 +1086,23 @@ SQL;
 	 */
 
 	function save_post( $post_id ) {
+		$this->log( '⏰ Event: Save Post' );
 		$status = get_post_status( $post_id );
-		if ( !in_array( $status, array( 'publish', 'draft', 'future', 'private' ) ) )
+		if ( !in_array( $status, array( 'publish', 'draft', 'future', 'private' ) ) ) {
+			$this->log( "😭 Not a valid status for renaming: " . $status );
 			return;
+		}
 
 		$args = array( 'post_type' => 'attachment', 'numberposts' => -1, 'post_status' =>'any', 'post_parent' => $post_id );
 		$medias = get_posts( $args );
 
 		if ( $medias ) {
-			$this->log( '⏰ Event: Save Post' );
+			
 			foreach ( $medias as $attach ) {
 				$this->engine->rename( $attach->ID, null, false, 'updated' );
 			}
+		} else {
+			$this->log( "😭 No media found on save. ( The medias might be attached to a prior post parent )." );
 		}
 	}
 

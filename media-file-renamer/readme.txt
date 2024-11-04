@@ -3,9 +3,9 @@ Contributors: TigrouMeow
 Tags: rename, file, media, move, seo
 Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
-Tested up to: 6.6
+Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 6.0.0
+Stable tag: 6.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,17 +56,23 @@ If you only need an simple field in order to modify the filename, you can also t
 
 == Changelog ==
 
+= 6.0.1 (2024/11/04) =
+* Add: Renaming of the PDF thumbnails.
+* Add: Little enhancements.
+* Update: Better logging.
+* Fix: Optimized IDs retrieving for bulk queries.
+* 🥰 Please share some love [here](https://wordpress.org/support/plugin/media-file-renamer/reviews/?rate=5#new-post) by writing a review. It really helps! Thank you!
+
 = 6.0.0 (2024/10/18) =
 * Add: New "Hide Locked" option.
 * Fix: Toggle Lock works better.
 * Update: Enhancement related to warnings, and server-related issues.
 * Fix: Avoid history to crash the UI if it's null.
+* 💬 Don't hesitate to join our [Discord Channel](https://discord.gg/bHDGh38).
 
 = 5.9.8 (2024/09/18) =
 * Update: Enhanced locking system.
 * Fix: Minor issues.
-* 💬 Don't hesitate to join our [Discord Channel](https://discord.gg/bHDGh38).
-* 🥰 Please share some love [here](https://wordpress.org/support/plugin/media-file-renamer/reviews/?rate=5#new-post) by writing a review. It really helps! Thank you!
 
 = 5.9.7 (2024/08/11) =
 * Fix: Removed lodash dependency for better compatibility with other plugins using it.
