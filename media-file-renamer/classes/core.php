@@ -183,6 +183,7 @@ class Meow_MFRH_Core {
 		// Side-updates should be ran for CLI and REST
 		if ( is_admin() || $this->is_rest || $this->is_cli ) {
 			new Meow_MFRH_Updates( $this );
+			do_action( 'mfrh_initialize_parsers' );
 			if ( $this->get_option( 'rename_on_save', false ) ) {
 				add_action( 'save_post', array( $this, 'save_post' ) );
 			}

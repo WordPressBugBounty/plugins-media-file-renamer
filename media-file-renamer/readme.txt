@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 6.0.1
+Stable tag: 6.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,12 +56,16 @@ If you only need an simple field in order to modify the filename, you can also t
 
 == Changelog ==
 
+= 6.0.2 (2024/12/06) =
+* Add: Support for new parsers.
+* Add: Parser for Elementor.
+* 🥰 Please share some love [here](https://wordpress.org/support/plugin/media-file-renamer/reviews/?rate=5#new-post) by writing a review. It really helps! Thank you!
+
 = 6.0.1 (2024/11/04) =
 * Add: Renaming of the PDF thumbnails.
 * Add: Little enhancements.
 * Update: Better logging.
 * Fix: Optimized IDs retrieving for bulk queries.
-* 🥰 Please share some love [here](https://wordpress.org/support/plugin/media-file-renamer/reviews/?rate=5#new-post) by writing a review. It really helps! Thank you!
 
 = 6.0.0 (2024/10/18) =
 * Add: New "Hide Locked" option.
