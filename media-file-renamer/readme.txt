@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 6.0.3
+Stable tag: 6.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,10 +56,19 @@ If you only need an simple field in order to modify the filename, you can also t
 
 == Changelog ==
 
+= 6.0.4 (2024/12/22) =
+* Add: Tooltip messages for auto rename methods in the renamer component.
+* Add: Message displayed before "Auto" when no rename methods are selected.
+* Update: Parser settings UI with a toggle functionality and improved design.
+* Update: Moved Builders from Side Updates to Parsers for better organization.
+* Fix: Sanitized options on script load and ensured parsers are updated with defaults.
+* Fix: CSS regenerated for Elementor Parser to resolve formatting issues.
+* Update: Disabled the AI Vision option instead of hiding it for clarity.
+* 🥰 Please share some love [here](https://wordpress.org/support/plugin/media-file-renamer/reviews/?rate=5#new-post) by writing a review. It really helps! Thank you!
+
 = 6.0.3 (2024/12/09) =
 * Add: Support for new parsers.
 * Add: Parser for Elementor.
-* 🥰 Please share some love [here](https://wordpress.org/support/plugin/media-file-renamer/reviews/?rate=5#new-post) by writing a review. It really helps! Thank you!
 
 = 6.0.1 (2024/11/04) =
 * Add: Renaming of the PDF thumbnails.

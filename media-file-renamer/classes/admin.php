@@ -58,7 +58,7 @@ class Meow_MFRH_Admin extends MeowCommon_Admin {
 			'is_pro' => class_exists( 'MeowPro_MFRH_Core' ),
 			'is_registered' => !!$this->is_registered(),
 			'rest_nonce' => wp_create_nonce( 'wp_rest' ),
-			'options' => $this->core->get_all_options(),
+			'options' => $this->core->sanitize_options()[0], // Ensure we get the sanitized options when loading the script
 		] );
 	}
 

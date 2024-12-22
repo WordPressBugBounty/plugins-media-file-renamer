@@ -14,28 +14,7 @@ class Meow_MFRH_Updates {
 
 	public function __construct( $core ) {
     	$this->core = $core;
-
 		$this->init_actions();
-
-		// Support for WPML and PolyLang
-		if ( function_exists( 'icl_object_id' ) ) {
-			require( 'plugins/wpml.php' );
-		}
-
-		// Support for Beaver Builder
-		if ( class_exists( 'FLBuilderModel' ) ) {
-			require( 'plugins/beaverbuilder.php' );
-		}
-
-		// Support for Elementor
-		if ( function_exists( 'elementor_load_plugin_textdomain' ) && $this->core->get_option( "update_elementor", false ) ) {
-			require( 'plugins/elementor.php' );
-		}
-
-		// Support for Oxygen Builder
-		if ( class_exists( 'CT_Component' ) ) {
-			require( 'plugins/oxygen_builder.php' );
-		}
 	}
 
 	function init_actions() {

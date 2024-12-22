@@ -11,12 +11,38 @@ define( 'MFRH_OPTIONS', [
 	'on_upload_method_secondary' => 'none',
 	'on_upload_method_tertiary' => 'none',
 
+	'hide_none_warning' => false,
+
 	'rename_slug' => false,
 	'convert_to_ascii' => false,
+
 	'update_posts' => true,
 	'update_excerpts' => false,
 	'update_postmeta' => false,
-	'update_elementor' => false,
+
+	'parsers' => [
+		'elementor' => [
+			'display' => 'Elementor',
+			'exists' => defined( 'ELEMENTOR_VERSION' ),
+			'enabled' => true,
+		],
+		'oxygen' => [
+			'display' => 'Oxygen Builder',
+			'exists' => class_exists( 'CT_Component' ),
+			'enabled' => true,
+		],
+		'beaver_builder' => [
+			'display' => 'Beaver Builder',
+			'exists' => class_exists( 'FLBuilderModel' ),
+			'enabled' => true,
+		],
+		'wpml' => [
+			'display' => 'WPML',
+			'exists' => function_exists( 'icl_object_id' ),
+			'enabled' => true,
+		]
+	],
+
 	'undo' => false,
 	'move' => false,
 	'manual_rename' => false,
@@ -1971,6 +1997,18 @@ SQL;
 		return $options;
 	}
 
+	function toggle_parser( $parser ) {
+		$options = $this->get_all_options();
+
+		if ( key_exists( $parser, $options['parsers'] ) ) {
+			$options['parsers'][$parser]['enabled'] = !$options['parsers'][$parser]['enabled'];
+		}
+		
+		
+		return $this->update_options( $options );
+	}
+
+
 	function update_options( $options ) {
 		if ( !update_option( $this->option_name, $options, false ) ) {
 			return false;
@@ -2041,7 +2079,27 @@ SQL;
 
 		$needs_update = false;
 
+		// Ensure all the Parsers are up to date with the current default options (if we added new ones)
+		$default_parsers = MFRH_OPTIONS['parsers'];
+		$parsers = $options['parsers'];
 		
+		// Add missing parsers from defaults
+		foreach ( $default_parsers as $parser => $default ) {
+			if ( !isset( $parsers[ $parser ] ) ) {
+				error_log( "Adding parser $parser to the options." );
+				$options['parsers'][$parser] = $default;
+				$needs_update = true;
+			}
+		}
+		
+		// Remove parsers that have been removed from defaults
+		foreach ( $parsers as $parser => $value ) {
+			if ( !isset($default_parsers[ $parser ] ) ) {
+				error_log( "Removing parser $parser from the options." );
+				unset( $options['parsers'][$parser] );
+				$needs_update = true;
+			}
+		}
 
 		$force_rename = $options['force_rename'];
 		$numbered_files = $options['numbered_files'];
@@ -2111,8 +2169,6 @@ SQL;
 				}
 			}
 		}
-
-
 
 
 		if ( !$result || $needs_update ) {

@@ -50,6 +50,11 @@ class Meow_MFRH_Rest
 				'permission_callback' => array( $this->core, 'can_access_features' ),
 				'callback' => array( $this, 'rest_reset_metadata' )
 			) );
+			register_rest_route( $this->namespace, '/toggle_parser', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this->core, 'can_access_features' ),
+				'callback' => array( $this, 'rest_toggle_parser' )
+			) );
 
 		}
 
@@ -784,6 +789,23 @@ class Meow_MFRH_Rest
 			$value = $params['options'];
 			list( $options, $success, $message ) = $this->core->update_options( $value );
 			return new WP_REST_Response([ 'success' => $success, 'message' => $message, 'options' => $options ], 200 );
+		}
+		catch ( Exception $e ) {
+			return new WP_REST_Response([ 'success' => false, 'message' => $e->getMessage() ], 500 );
+		}
+	}
+
+	function rest_toggle_parser( $request ) {
+		try {
+			$params = $request->get_json_params();
+			$parser = $params['parser'];
+
+			$res = $this->core->toggle_parser( $parser );
+			if ( !$res ) {
+				throw new Exception( __( 'The parser could not be toggled.', 'media-file-renamer' ) );
+			}
+
+			return new WP_REST_Response([ 'success' => true, 'options' => $res[0] ], 200 );
 		}
 		catch ( Exception $e ) {
 			return new WP_REST_Response([ 'success' => false, 'message' => $e->getMessage() ], 500 );

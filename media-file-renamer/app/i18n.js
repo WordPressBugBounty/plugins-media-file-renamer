@@ -99,6 +99,16 @@ i18n.CONTEXT = {
 };
 
 i18n.RENAMER_FIELDS = {
+
+  AUTO_RENAME_HOVER_NONE: __( 'No methods are selected, the filename will be sanitize and use custom filters and rules you have set up.', 'media-file-renamer' ),
+  AUTO_RENAME_HOVER_MEDIA_TITLE: __( 'Rename based on the media title.', 'media-file-renamer' ),
+  AUTO_RENAME_HOVER_POST_TITLE: __( 'Rename based on the post title.', 'media-file-renamer' ),
+  AUTO_RENAME_HOVER_POST_ACF_FIELD: __( 'Rename based on a custom field from ACF.', 'media-file-renamer' ),
+  AUTO_RENAME_HOVER_VISION: __( 'Use AI vision to analyze the image and generate a filename.', 'media-file-renamer' ),
+  AUTO_RENAME_HOVER_ALT_TEXT: __( 'Rename based on the alt text metadata.', 'media-file-renamer' ),
+  AUTO_RENAME_HOVER_ANONYMIZE_MD5: __( 'Rename by generating an MD5 hash to anonymize the filename.', 'media-file-renamer' ),
+
+
   UNLOCK_DESCRIPTION: __( 'Unlock, to allow future actions', 'media-file-renamer' ),
   LOCK_DESCRIPTION: __( 'Lock, to avoid future actions', 'media-file-renamer' ),
   FILENAME_ALREADY_EXISTS: __( "The filename proposed by {0} already exists. Automatically switched to {1}.", 'media-file-renamer' ),
@@ -111,12 +121,18 @@ i18n.RENAMER_FIELDS = {
   CANCEL: __( 'Cancel', 'media-file-renamer' ),
   APPLY: __( 'Apply', 'media-file-renamer' ),
   MOVE: __( 'Move', 'media-file-renamer' ),
+
+
+
+
 };
 
 i18n.MODAL = {
   RUN: __( 'Run', 'media-file-renamer' ),
   I_NEED_PRO_VERSION: __( 'I need the Pro Version', 'media-file-renamer' ),
   CLOSE: __( 'Close', 'media-file-renamer' ),
+  UNDERSTAND: __( 'I understand', 'media-file-renamer' ),
+  GO_TO_SETTINGS: __( 'Go to Settings', 'media-file-renamer' ),
   ERROR: __( 'Error', 'media-file-renamer' ),
   ERROR_WITH_MEDIA: __( 'Error with Media', 'media-file-renamer' ),
   AUTO_RETRY: __( 'Auto Retry', 'media-file-renamer' ),
@@ -144,6 +160,8 @@ i18n.MODAL = {
   CREATE_FOLDER: __( 'Create Folder', 'media-file-renamer' ),
   EXIT: __( 'Exit', 'media-file-renamer' ),
   RENAME_TITLE: __( 'Rename your media', 'media-file-renamer' ),
+  NO_METHOD_SELECTED: __( 'No Auto Method Selected', 'media-file-renamer' ),
+  NO_METHOD_SELECTED_CONTENT: __( ' You don\'t have any Auto Rename Method selected. This means that the plugin will only sanitize the current filename or use your custom method if you have one. Go to the Settings to select an Auto Rename Method.', 'media-file-renamer' ),
 };
 
 i18n.AUTO_RENAME_OPTIONS = {
@@ -202,10 +220,12 @@ i18n.SETTINGS = {
   FOR_ADVANCED_USERS_DEVELOPERS: __( 'For Advanced Users & Developers', 'media-file-renamer' ),
   LICENSE_PRO: __( 'License (Pro)', 'media-file-renamer' ),
   LOGS_DEBUG: __( 'Logs & Debug', 'media-file-renamer' ),
+  PARSERS: __( 'Parsers', 'media-file-renamer' ),
   SIDE_UPDATES: __( 'Side Updates', 'media-file-renamer' ),
   SIDE_UPDATES_DESCRIPTION: __( "When the files are renamed, many links to them on your WordPress might be broken. Those options are updating the references to those files. <strong>Give it a try, every install is different and it might not work for certain kind of references.</strong>", 'media-file-renamer' ),
   ENABLE: __( 'Enable', 'media-file-renamer' ),
   DISABLE: __( 'Disable', 'media-file-renamer' ),
+  DISABLE_PARSER: __( 'Disable Parser', 'media-file-renamer' ),
   AI_ENGINE_SYNC: __( '🤖 When syncing using AI Engine, the plugin will use AI to generate <b>each field</b> you selected individually. This is a very powerful feature, but it might take a bit of time to process.', 'media-file-renamer' ),
   POSTS: __( 'Posts', 'media-file-renamer' ),
   POSTS_DESCRIPTION: __( "Update the references to the renamed files in the <strong>content</strong> of the posts (of all types).", 'media-file-renamer' ),
@@ -244,6 +264,7 @@ i18n.SETTINGS = {
   AI_SUGGESTIONS: __( 'AI Suggestions', 'media-file-renamer' ),
   AI_SUGGESTIONS_DESCRIPTION: __( 'This will give you suggestions based on what the AI sees in your metadata.', 'media-file-renamer' ),
   AI_VISION: __( 'AI Vision', 'media-file-renamer' ),
+  AI_VISION_DISABLED: __( '( Needs AI Suggestions )', 'media-file-renamer' ),
   AI_VISION_DESCRIPTION: __( 'This will analyze your images and give you perfect suggestions based on your images.', 'media-file-renamer' ),
   EXIF_CONTEXT: __( 'EXIF Context', 'media-file-renamer' ),
   EXIF_CONTEXT_DESCRIPTION: __( 'AI Vision will use the EXIF data (title, caption, keywords) to enhance its suggestions.', 'media-file-renamer' ),
@@ -333,6 +354,8 @@ i18n.SETTINGS = {
   SCOPE: __( 'Scope', 'media-file-renamer' ),
   RULES: __( 'Rules', 'media-file-renamer' ),
   NO_FIELDS_SELECTED: __( '⚠️ No fields selected.', 'media-file-renamer' ),
+  HIDE_NONE_WARNING: __( 'Hide "No Method" Warning', 'media-file-renamer' ),
+  HIDE_NONE_WARNING_DESCRIPTION: __( 'Hide the warning that appears when you try to auto rename a file without any method selected.', 'media-file-renamer' ),
 };
 
 i18n.ON_UPLOAD_OPTIONS = {
