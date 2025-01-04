@@ -55,6 +55,12 @@ class Meow_MFRH_Rest
 				'permission_callback' => array( $this->core, 'can_access_features' ),
 				'callback' => array( $this, 'rest_toggle_parser' )
 			) );
+			register_rest_route( $this->namespace, '/test_rules', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this->core, 'can_access_features' ),
+				'callback' => array( $this, 'rest_test_rules' )
+			) );
+
 
 		}
 
@@ -806,6 +812,24 @@ class Meow_MFRH_Rest
 			}
 
 			return new WP_REST_Response([ 'success' => true, 'options' => $res[0] ], 200 );
+		}
+		catch ( Exception $e ) {
+			return new WP_REST_Response([ 'success' => false, 'message' => $e->getMessage() ], 500 );
+		}
+	}
+
+	function rest_test_rules( $request ) {
+		try {
+			$params = $request->get_json_params();
+			$filename = $params['filename'];
+
+			$new_filename = $this->core->engine->new_filename( $filename , $filename );
+
+			if ( !$new_filename ) {
+				throw new Exception( __( 'The test could not be performed.', 'media-file-renamer' ) );
+			}
+
+			return new WP_REST_Response([ 'success' => true, 'filename' => $new_filename ], 200 );
 		}
 		catch ( Exception $e ) {
 			return new WP_REST_Response([ 'success' => false, 'message' => $e->getMessage() ], 500 );

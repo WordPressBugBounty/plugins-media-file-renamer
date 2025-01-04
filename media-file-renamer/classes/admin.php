@@ -47,7 +47,6 @@ class Meow_MFRH_Admin extends MeowCommon_Admin {
 		}, 10, 3 );
 
 		// Localize and options
-		wp_set_script_translations( 'mwai', 'ai-engine' );
 		wp_localize_script( 'mfrh', 'mfrh', [
 			//'api_nonce' => wp_create_nonce( 'mfrh' ),
 			'api_url' => get_rest_url(null, '/media-file-renamer/v1/'),
@@ -60,6 +59,9 @@ class Meow_MFRH_Admin extends MeowCommon_Admin {
 			'rest_nonce' => wp_create_nonce( 'wp_rest' ),
 			'options' => $this->core->sanitize_options()[0], // Ensure we get the sanitized options when loading the script
 		] );
+
+		// Load the i18n file
+		wp_set_script_translations( MFRH_PREFIX, MFRH_DOMAIN, MFRH_PATH . 'app' );
 	}
 
 	function is_pro_user() {

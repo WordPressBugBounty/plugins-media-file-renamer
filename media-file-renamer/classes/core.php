@@ -19,6 +19,7 @@ define( 'MFRH_OPTIONS', [
 	'update_posts' => true,
 	'update_excerpts' => false,
 	'update_postmeta' => false,
+	'trigger_on_attachment_updated' => false,
 
 	'parsers' => [
 		'elementor' => [
@@ -189,8 +190,8 @@ class Meow_MFRH_Core {
 
 		add_action( 'add_attachment', [ $this, 'on_upload_hook' ] );
 		add_filter( 'wp_handle_upload_prefilter', [ $this, 'on_upload_hook_prefilter' ] );
-		
-		add_filter( 'attachment_fields_to_save', array( $this, 'attachment_fields_to_save' ), 20, 2 );
+
+		add_action( 'attachment_updated', array( $this, 'attachment_fields_to_save' ), 10, 3 );
 
 		if ( $this->get_option( 'filename_prefix', '' ) != '' || $this->get_option( 'filename_suffix', '' ) != '' ) {
 			add_filter( 'mfrh_new_filename', [ $this, 'add_prefix_suffix' ], 10, 3 );
@@ -1142,10 +1143,18 @@ SQL;
 	 *
 	 */
 
-	function attachment_fields_to_save( $post, $attachment ) {
-		$this->log( '⏰ Event: Save Attachment' );
-		$post = $this->engine->rename( $post );
-		return $post;
+	function attachment_fields_to_save( $post_id, $post_after, $post_before ) {
+
+		$should_rename = $this->get_option( 'trigger_on_attachment_update', false );
+		if ( !$should_rename ) { return; }	
+
+		// Check that it's actually an attachment post type
+		if ( get_post_type( $post_id ) !== 'attachment' ) {
+			return;
+		}
+
+		$this->log( '⏰ Event: Attachment Fields updated.' );
+		$this->engine->rename( $post_after, null, false, 'updated' );
 	}
 
 	function log_sql( $data, $antidata ) {

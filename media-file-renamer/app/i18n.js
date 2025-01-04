@@ -7,7 +7,7 @@ i18n.COMMON = {
   TUTORIAL: __( 'Tutorial', 'media-file-renamer' ),
   SETTINGS: __( 'Settings', 'media-file-renamer' ),
   DASHBOARD: __( 'Dashboard', 'media-file-renamer' ),
-  BY_JORDY_MEOW: __( 'By Jordy Meow', 'media-cleaner' ),
+  BY_JORDY_MEOW: __( 'By Jordy Meow', 'media-file-renamer' ),
 };
 
 i18n.DASHBOARD = {
@@ -285,6 +285,7 @@ i18n.SETTINGS = {
   FILENAME_REPLACE: __( 'Filename Replace', 'media-file-renamer' ),
   FILENAME_REPLACE_DESCRIPTION: __( 'Enter the string to replace followed by an arrow "=>" and the string to replace with. Example: neko=>cat. Separate multiple replacements with a comma.', 'media-file-renamer' ),
   SYNCHRONIZE: __( 'Synchronize', 'media-file-renamer' ),
+  TEST_RULES: __( 'Test Rules', 'media-file-renamer' ),
   GENERATE: __( 'Generate', 'media-file-renamer' ),
 
   CLEAN_RENAME_ON_UPLOAD: __( 'The original filename will be cleaned and used as the new filename.', 'media-file-renamer' ),
@@ -356,6 +357,8 @@ i18n.SETTINGS = {
   NO_FIELDS_SELECTED: __( '⚠️ No fields selected.', 'media-file-renamer' ),
   HIDE_NONE_WARNING: __( 'Hide "No Method" Warning', 'media-file-renamer' ),
   HIDE_NONE_WARNING_DESCRIPTION: __( 'Hide the warning that appears when you try to auto rename a file without any method selected.', 'media-file-renamer' ),
+  TRIGGER_ON_ATTACHMENT_UPDATE: __( 'Trigger on Attachment Update', 'media-file-renamer' ),
+  TRIGGER_ON_ATTACHMENT_UPDATE_DESCRIPTION: __( 'When an attachment is updated, the plugin will trigger the renaming process.', 'media-file-renamer' ),
 };
 
 i18n.ON_UPLOAD_OPTIONS = {

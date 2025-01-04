@@ -196,6 +196,10 @@ class Meow_MFRH_Engine {
 			$id = $media['ID'];
 			$post = $media;
 		}
+		else if ( is_object( $media ) ) {
+			$id = $media->ID;
+			$post = (array) $media;
+		}
 		else {
 			die( 'Media File Renamer: rename() requires the ID or the array for the media.' );
 		}
@@ -208,7 +212,7 @@ class Meow_MFRH_Engine {
 		if ( $force_rename &&  is_null( $output['proposed_filename'] ) ) {
 			$this->core->log( "🚫 Force Rename is enabled, but the proposed filename is null. Generating a new one without force rename." );
 			$force_rename = false;
-			$need_rename = $this->core->check_attachment( $post, $output, $manual_filename, $force_rename );
+			$need_rename = $this->core->check_attachment( $post, $output, $manual_filename, $force_rename, false );
 		}
 
 		if ( !$need_rename ) {
