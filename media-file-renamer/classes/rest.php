@@ -348,13 +348,14 @@ class Meow_MFRH_Rest
 	function rest_sync_fields( $request ) {
 		$params = $request->get_json_params();
 		$mediaId = (int)$params['mediaId'];
+		$useVision = isset( $params['ai'] ) ? (bool)$params['ai'] : false;
 
 		$post = get_post( $mediaId, ARRAY_A );
 		if ( !$post ) {
 			return new WP_REST_Response( [ 'success' => false, 'message' => 'The media ID is invalid.' ], 200 );
 		}
 
-		do_action( 'mfrh_media_resync', $post );
+		do_action( 'mfrh_media_resync', $post, $useVision );
 		return new WP_REST_Response( [ 'success' => true, 'data' => [] ], 200 );
 	}
 

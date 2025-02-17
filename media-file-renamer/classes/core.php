@@ -236,33 +236,47 @@ class Meow_MFRH_Core {
 
 	// Check if the file exists, if it is, return the real path for it
 	// https://stackoverflow.com/questions/3964793/php-case-insensitive-version-of-file-exists
-	static function sensitive_file_exists( $filename ) {
 
+	static function sensitive_file_exists( $filename ) {
+	
+		// Normalize the incoming $filename
+		if (class_exists('Normalizer')) {
+			$filename = Normalizer::normalize($filename, Normalizer::FORM_C);
+		}
+	
 		$original_filename = $filename;
 		$caseInsensitive = Meow_MFRH_Core::get_plugin_option( 'case_insensitive_check', false );
-		// if ( !$sensitive_check ) {
-		// 	$exists = file_exists( $filename );
-		// 	return $exists ? $filename : null;
-		// }
-
+	
 		$output = false;
 		$directoryName = mfrh_dirname( $filename );
+		// Gather all files in the directory.
 		$fileArray = glob( $directoryName . '/*', GLOB_NOSORT );
-		$i = ( $caseInsensitive ) ? "i" : "";
-
-		// Check if \ is in the string
-		if ( preg_match( "/\\\|\//", $filename) ) {
+	
+		$i = $caseInsensitive ? 'i' : '';
+	
+		// Extract just the basename from $filename if path separators exist
+		if ( preg_match( "/\\\|\//", $filename ) ) {
 			$array = preg_split("/\\\|\//", $filename);
-			$filename = $array[count( $array ) -1];
+			$filename = $array[ count($array) - 1 ];
+			// Re-normalize after splitting, just to be safe
+			if (class_exists('Normalizer')) {
+				$filename = Normalizer::normalize($filename, Normalizer::FORM_C);
+			}
 		}
-		// Compare filenames
+	
+		// Now compare each file in the directory
 		foreach ( $fileArray as $file ) {
-			if ( preg_match( "/\/" . preg_quote( $filename ) . "$/{$i}", $file ) ) {
+			// Normalize the file path from the filesystem
+			if (class_exists('Normalizer')) {
+				$file = Normalizer::normalize($file, Normalizer::FORM_C);
+			}
+
+			if ( preg_match("/\/" . preg_quote($filename, '/') . "$/{$i}u", $file) ) {
 				$output = $file;
 				break;
 			}
 		}
-
+	
 		return $output;
 	}
 
@@ -576,11 +590,12 @@ SQL;
 				foreach ( $this->on_upload_fields as $field => $sync ) {
 					if ( $sync ){
 						if ( $field == 'sync_alt' ) {
-							$my_image_title = apply_filters( 'mfrh_exif_upload', $my_image_title );
+							$my_image_title = apply_filters( 'mfrh_exif_upload_alt', $my_image_title );
 							update_post_meta( $post->ID, '_wp_attachment_image_alt', $my_image_title );
 						}
 						else {
-							$my_image_meta[$field] = $my_image_title;
+							$value = apply_filters( 'mfrh_exif_upload_' . $field, $my_image_title );
+							$my_image_meta[$field] = $value;
 						}
 					}
 				}
@@ -630,11 +645,12 @@ SQL;
 			foreach ( $this->on_upload_fields as $field => $sync ) {
 				if ( $sync ){
 					if ( $field == 'sync_alt' ) {
-						$my_image_title = apply_filters( 'mfrh_clean_upload', $my_image_title );
+						$my_image_title = apply_filters( 'mfrh_clean_upload_alt', $my_image_title );
 						update_post_meta($post->ID, '_wp_attachment_image_alt', $my_image_title);
 					}
 					else {
-						$my_image_meta[$field] = $my_image_title;
+						$value = apply_filters( 'mfrh_exif_upload_' . $field, $my_image_title );
+						$my_image_meta[$field] = $value;
 					}
 				}
 			}
@@ -717,11 +733,12 @@ SQL;
 
 					if ( $newMetadata ) {
 						if ( $field == 'sync_alt' ) {
-							$alt = apply_filters( 'mfrh_vision_upload', $newMetadata );
+							$alt = apply_filters( 'mfrh_vision_upload_alt', $newMetadata );
 							update_post_meta( $post->ID, '_wp_attachment_image_alt', $alt );
 						}
 						else {
-							$my_image_meta [ $field ] = $newMetadata;
+							$value = apply_filters( 'mfrh_exif_upload_' . $field, $newMetadata );
+							$my_image_meta [ $field ] = $value;
 						}
 					}
 				}
@@ -973,6 +990,7 @@ SQL;
 		if ( !$manual_filename ) {
 			if ( $ideal == $new_filename ) {
 				delete_post_meta( $id, '_require_file_renaming' );
+				$this->log( "😭 Ideal filename." );
 				return false;
 			}
 		}
@@ -1710,10 +1728,11 @@ SQL;
 		$entry->pending = $entry->pending === '1';
 		$entry->proposed_filename = null;
 		$lock_enabled = $this->get_option( 'lock' );
+		$force_rename = $this->get_option( 'force_rename' );
 		if ( !$lock_enabled || !$entry->locked ) {
 			$output = [];
 			// TODO: We should optimize this check_attachment function one day.
-			$this->check_attachment( get_post( $entry->ID, ARRAY_A ), $output );
+			$this->check_attachment( get_post( $entry->ID, ARRAY_A ), $output, null, $force_rename );
 			if ( isset( $output['ideal_filename'] ) ) {
 				$entry->ideal_filename = $output['ideal_filename'];
 			}

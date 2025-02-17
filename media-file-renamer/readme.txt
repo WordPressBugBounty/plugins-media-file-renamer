@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 6.0.5
+Stable tag: 6.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,6 +56,15 @@ If you only need an simple field in order to modify the filename, you can also t
 
 == Changelog ==
 
+= 6.0.6 (2025/02/17) =
+* Add: Introduced CLI commands (info, unlock, lock, lock_all) for better automation.
+* Add: Added the mfrh CLI command to simplify Media File Renamer usage.
+* Add: Implemented AI Vision support for media resync to enhance automation.
+* Fix: Handled fatal errors in Vision queries for improved stability.
+* Fix: Resolved force rename issues, improved meta warnings, and refined sensitive file checks.
+* Update: Added filters for on-upload sync fields to improve customization.
+* 🥰 Please share some love [here](https://wordpress.org/support/plugin/media-file-renamer/reviews/?rate=5#new-post) by writing a review. It really helps! Thank you!
+
 = 6.0.5 (2025/01/04) =
 * Fix: Force Rename was not working properly.
 * Update: Refactored History, and enhanced its UI.
@@ -63,7 +72,6 @@ If you only need an simple field in order to modify the filename, you can also t
 * Fix: Translation issues resolved.
 * Fix: Status in the Parsers.
 * Add: New field to test the filename rules.
-* 🥰 Please share some love [here](https://wordpress.org/support/plugin/media-file-renamer/reviews/?rate=5#new-post) by writing a review. It really helps! Thank you!
 
 = 6.0.4 (2024/12/22) =
 * Add: Tooltip messages for auto rename methods in the renamer component.

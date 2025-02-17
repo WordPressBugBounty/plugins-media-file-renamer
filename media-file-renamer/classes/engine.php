@@ -204,7 +204,8 @@ class Meow_MFRH_Engine {
 			die( 'Media File Renamer: rename() requires the ID or the array for the media.' );
 		}
 
-		$force_rename = apply_filters( 'mfrh_force_rename', false );
+		//$force_rename = apply_filters( 'mfrh_force_rename', false );
+		$force_rename = $this->core->get_option( 'force_rename', false );
 
 		// Check attachment
 		$need_rename = $this->core->check_attachment( $post, $output, $manual_filename, $force_rename, false );
@@ -285,6 +286,10 @@ class Meow_MFRH_Engine {
 
 		// Get the attachment meta
 		$meta = wp_get_attachment_metadata( $id );
+		if ( !$meta ) {
+			$this->core->log( "The attachment metadata cannot be found." );
+			return [ 'warning' => '⚠️ The attachment metadata cannot be found.' ];
+		}
 
 		// Get the information about the original image
 		// (which means the current file is a rescaled version of it)
