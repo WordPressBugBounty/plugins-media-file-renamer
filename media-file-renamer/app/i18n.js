@@ -165,6 +165,9 @@ i18n.MODAL = {
   RENAME_TITLE: __( 'Rename your media', 'media-file-renamer' ),
   NO_METHOD_SELECTED: __( 'No Auto Method Selected', 'media-file-renamer' ),
   NO_METHOD_SELECTED_CONTENT: __( ' You don\'t have any Auto Rename Method selected. This means that the plugin will only sanitize the current filename or use your custom method if you have one. Go to the Settings to select an Auto Rename Method.', 'media-file-renamer' ),
+  SYNC_FIELDS_TIME_FILTER: __( 'Time Filter', 'media-file-renamer' ),
+  SYNC_FIELDS_TIME_FILTER_DESCRIPTION: __( 'Only sync the fields that have not been updated since the past selected hours.', 'media-file-renamer' ),
+  SYNC_FIELDS_TIME_FILTER_DISABLED: __( 'Time Filter is disabled if you are not using the History feature.', 'media-file-renamer' ),
 };
 
 i18n.AUTO_RENAME_OPTIONS = {

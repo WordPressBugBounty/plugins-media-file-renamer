@@ -349,13 +349,14 @@ class Meow_MFRH_Rest
 		$params = $request->get_json_params();
 		$mediaId = (int)$params['mediaId'];
 		$useVision = isset( $params['ai'] ) ? (bool)$params['ai'] : false;
+		$timeFilter = isset( $params['syncFieldsTimeFilter'] ) ? (int)$params['syncFieldsTimeFilter'] : 0;
 
 		$post = get_post( $mediaId, ARRAY_A );
 		if ( !$post ) {
 			return new WP_REST_Response( [ 'success' => false, 'message' => 'The media ID is invalid.' ], 200 );
 		}
 
-		do_action( 'mfrh_media_resync', $post, $useVision );
+		do_action( 'mfrh_media_resync', $post, $useVision, $timeFilter );
 		return new WP_REST_Response( [ 'success' => true, 'data' => [] ], 200 );
 	}
 
@@ -458,7 +459,7 @@ class Meow_MFRH_Rest
 		if ( $this->core->featured_only ) {
 			$innerJoinSql .= " INNER JOIN $wpdb->postmeta pmm ON pmm.meta_value = p.ID AND pmm.meta_key = '_thumbnail_id'";
 		}
-		return (int)$wpdb->get_var( "SELECT COUNT(p.ID) FROM $wpdb->posts p 
+		return (int)$wpdb->get_var( "SELECT COUNT( DISTINCT p.ID) FROM $wpdb->posts p 
 			INNER JOIN $wpdb->postmeta pm ON pm.post_id = p.ID AND pm.meta_key = '_manual_file_renaming'
 			$innerJoinSql 
 			WHERE p.post_type = 'attachment' AND p.post_status = 'inherit' $whereSql"
@@ -482,7 +483,7 @@ class Meow_MFRH_Rest
 			$innerJoinSql .= " INNER JOIN $wpdb->postmeta pmm ON pmm.meta_value = p.ID AND pmm.meta_key = '_thumbnail_id'";
 		}
 		$whereSql = count( $whereCaluses ) > 0 ? "AND " . implode( "AND ", $whereCaluses ) : "";
-		return (int)$wpdb->get_var( "SELECT COUNT(p.ID) FROM $wpdb->posts p 
+		return (int)$wpdb->get_var( "SELECT COUNT(DISTINCT p.ID) FROM $wpdb->posts p 
 			INNER JOIN $wpdb->postmeta pm ON pm.post_id = p.ID AND pm.meta_key = '_require_file_renaming'
 			$innerJoinSql 
 			WHERE p.post_type = 'attachment' AND p.post_status = 'inherit' $whereSql"
@@ -506,7 +507,7 @@ class Meow_MFRH_Rest
 			$innerJoinSql .= " INNER JOIN $wpdb->postmeta pmm ON pmm.meta_value = p.ID AND pmm.meta_key = '_thumbnail_id'";
 		}
 		$whereSql = count($whereCaluses) > 0 ? "AND " . implode("AND ", $whereCaluses) : "";
-		return (int)$wpdb->get_var( "SELECT COUNT(p.ID) FROM $wpdb->posts p 
+		return (int)$wpdb->get_var( "SELECT COUNT(DISTINCT p.ID) FROM $wpdb->posts p 
 			INNER JOIN $wpdb->postmeta pm ON pm.post_id = p.ID AND pm.meta_key = '_original_filename'
 			$innerJoinSql 
 			WHERE p.post_type = 'attachment' AND p.post_status = 'inherit' $whereSql"
