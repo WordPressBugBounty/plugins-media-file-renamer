@@ -3,9 +3,9 @@ Contributors: TigrouMeow
 Tags: rename, file, media, move, seo
 Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
-Tested up to: 6.7
+Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 6.0.7
+Stable tag: 6.0.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,10 @@ If you only need an simple field in order to modify the filename, you can also t
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.0.8 (2025/05/01) =
+* Update: Ensured all parsers are properly updated for consistent behavior.
+* Fix: Fixed and refactored the Beaver Builder parser for improved reliability and structure.
 
 = 6.0.7 (2025/03/12) =
 * Update: Display Sync and Lock buttons in the Renamed tab for better usability.

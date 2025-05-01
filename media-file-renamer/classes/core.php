@@ -22,26 +22,7 @@ define( 'MFRH_OPTIONS', [
 	'trigger_on_attachment_updated' => false,
 
 	'parsers' => [
-		'elementor' => [
-			'display' => 'Elementor',
-			'exists' => defined( 'ELEMENTOR_VERSION' ),
-			'enabled' => true,
-		],
-		'oxygen' => [
-			'display' => 'Oxygen Builder',
-			'exists' => class_exists( 'CT_Component' ),
-			'enabled' => true,
-		],
-		'beaver_builder' => [
-			'display' => 'Beaver Builder',
-			'exists' => class_exists( 'FLBuilderModel' ),
-			'enabled' => true,
-		],
-		'wpml' => [
-			'display' => 'WPML',
-			'exists' => function_exists( 'icl_object_id' ),
-			'enabled' => true,
-		]
+
 	],
 
 	'undo' => false,
@@ -1995,6 +1976,30 @@ SQL;
 				$options[$key] = $value;
 			}
 		}
+
+		$options['parsers'] = [
+			'elementor' => [
+				'display' => 'Elementor',
+				'exists' => defined( 'ELEMENTOR_VERSION' ),
+				'enabled' => true,
+			],
+			'oxygen' => [
+				'display' => 'Oxygen Builder',
+				'exists' => class_exists( 'CT_Component' ),
+				'enabled' => true,
+			],
+			'beaver_builder' => [
+				'display' => 'Beaver Builder',
+				'exists' => class_exists( 'FLBuilderModel' ),
+				'enabled' => true,
+			],
+			'wpml' => [
+				'display' => 'WPML',
+				'exists' => function_exists( 'icl_object_id' ),
+				'enabled' => true,
+			]
+		];
+
 		return $options;
 	}
 
@@ -2010,7 +2015,7 @@ SQL;
 	}
 
 	function get_all_options() {
-		$options = get_option( $this->option_name, null );
+		$options = $this->list_options();
 		$options = $this->check_options( $options );
 
 		$needs_registered_options = $this->needs_registered_options();
@@ -2065,6 +2070,9 @@ SQL;
 		if ( $hasChanges ) {
 			update_option( $this->option_name , $options );
 		}
+
+
+
 		return $options;
 	}
 
@@ -2106,28 +2114,6 @@ SQL;
 		$message = null;
 
 		$needs_update = false;
-
-		// Ensure all the Parsers are up to date with the current default options (if we added new ones)
-		$default_parsers = MFRH_OPTIONS['parsers'];
-		$parsers = $options['parsers'];
-		
-		// Add missing parsers from defaults
-		foreach ( $default_parsers as $parser => $default ) {
-			if ( !isset( $parsers[ $parser ] ) ) {
-				error_log( "Adding parser $parser to the options." );
-				$options['parsers'][$parser] = $default;
-				$needs_update = true;
-			}
-		}
-		
-		// Remove parsers that have been removed from defaults
-		foreach ( $parsers as $parser => $value ) {
-			if ( !isset($default_parsers[ $parser ] ) ) {
-				error_log( "Removing parser $parser from the options." );
-				unset( $options['parsers'][$parser] );
-				$needs_update = true;
-			}
-		}
 
 		$force_rename = $options['force_rename'];
 		$numbered_files = $options['numbered_files'];
