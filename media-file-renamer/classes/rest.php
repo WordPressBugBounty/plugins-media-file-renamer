@@ -539,7 +539,7 @@ class Meow_MFRH_Rest
 
 	function rest_get_stats($request) {
 		$search = trim( $request->get_param( 'search' ) );
-		//$pending = $this->count_pending( $search );
+		$pending = $this->count_pending( $search );
 		$all = $this->count_all( $search );
 		$locked = $this->count_locked( $search );
 		$renamed = $this->count_renamed( $search );
@@ -549,6 +549,7 @@ class Meow_MFRH_Rest
 			'locked' => $locked,
 			'unlocked' => $unlocked,
 			'renamed' => $renamed,
+			'pending' => $pending,
 			'unrenamed' => $all - $renamed,
 		) ], 200 );
 	}

@@ -116,7 +116,8 @@ i18n.RENAMER_FIELDS = {
   FILENAME_ALREADY_EXISTS_NO_SKIP: __( "The filename proposed by {0} already exists. Please select another method or rename manually.", 'media-file-renamer' ),
   ROLLBACK_TO_ORIGINAL: __( 'Rollback to original', 'media-file-renamer' ),
   RENAME_AUTOMATICALLY: __( 'Rename automatically', 'media-file-renamer' ),
-  AUTO_RENAME: __( 'Auto', 'media-file-renamer' ),
+  AUTO_RENAME: __( 'AUTO', 'media-file-renamer' ),
+  AUTO_RENAME_ALREADY_MATCHING: __( 'The filename is already matching the auto method result, no need to auto rename.', 'media-file-renamer' ),
   RENAME_MANUALLY: __( 'Rename manually', 'media-file-renamer' ),
   CANCEL_MANUAL_RENAME: __( 'Cancel manual rename', 'media-file-renamer' ),
   CANCEL: __( 'Cancel', 'media-file-renamer' ),
@@ -293,6 +294,8 @@ i18n.SETTINGS = {
   SYNCHRONIZE: __( 'Synchronize', 'media-file-renamer' ),
   TEST_RULES: __( 'Test Rules', 'media-file-renamer' ),
   GENERATE: __( 'Generate', 'media-file-renamer' ),
+  APPLY_OR_CANCEL: __( 'Apply or Cancel', 'media-file-renamer' ),
+  APPLY_OR_CANCEL_DESCRIPTION: __( 'This will ask you to apply or cancel the proposed changes, if you have the manual renaming enabled this leave you the chance to review the changes before applying them.', 'media-file-renamer' ),
 
   CLEAN_RENAME_ON_UPLOAD: __( 'The original filename will be cleaned and used as the new filename.', 'media-file-renamer' ),
   CLEAN_EXIF_TITLE_ON_UPLOAD: __( 'The EXIF Title will be cleaned and used as the new filename.', 'media-file-renamer' ),

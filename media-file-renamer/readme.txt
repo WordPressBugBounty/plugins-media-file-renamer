@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 6.0.8
+Stable tag: 6.0.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,13 @@ If you only need an simple field in order to modify the filename, you can also t
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.0.9 (2025/06/29) =
+* Add: Option to enable or disable the "Apply or Cancel" feature from Advanced settings.
+* Update: Auto Rename with Vision now shows suggestions instead of automatically applying changes.
+* Add: Pending status indicator and minor fixes for enhanced reliability.
+* Update: Changed duplicated translation key for improved localization support.
+* Add: Indicator to show when a filename already matches the expected auto output.
 
 = 6.0.8 (2025/05/01) =
 * Update: Ensured all parsers are properly updated for consistent behavior.

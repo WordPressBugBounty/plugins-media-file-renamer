@@ -53,6 +53,7 @@ define( 'MFRH_OPTIONS', [
 	'posts_per_page' => 10,
 	'lock' => false,
 	'hide_locked' => true,
+	'apply_or_cancel' => true,
 	'autolock_auto' => false,
 	'autolock_manual' => true,
 	'delay' => 100,
