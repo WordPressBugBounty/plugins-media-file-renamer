@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 6.0.9
+Stable tag: 6.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,11 @@ If you only need an simple field in order to modify the filename, you can also t
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.1.0 (2025/07/23) =
+* Update: Reworked the file naming system to generate unique filenames using increment, hash, and random methods.
+* Update: Resized thumbnails for better display quality.
+* Fix: Triggered the mfrh_new_filename action on upload events to ensure filename updates are properly handled.
 
 = 6.0.9 (2025/06/29) =
 * Add: Option to enable or disable the "Apply or Cancel" feature from Advanced settings.

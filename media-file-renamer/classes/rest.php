@@ -853,9 +853,9 @@ class Meow_MFRH_Rest
 
 		if ( $option_name === 'mfrh_force_rename' || $option_name === 'mfrh_numbered_files' ) {
 			$force_rename = $this->core->get_option( 'force_rename', false );
-			$numbered_files = $this->core->get_option( 'numbered_files', false );
+			$numbered_files = $this->core->get_option( 'numbered_files', 'none' );
 
-			if ( !$force_rename || !$numbered_files ) {
+			if ( !$force_rename || !$numbered_files || $numbered_files === 'none' ) {
 				return $this->createValidationResult();
 			}
 

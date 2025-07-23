@@ -35,7 +35,7 @@ define( 'MFRH_OPTIONS', [
 	'manual_prompt' => false,
 
 	'manual_sanitize' => true,
-	'numbered_files' => false,
+	'numbered_files' => 'none',
 	'force_rename' => false,
 	'log' => false,
 	'logsql' => false,
@@ -295,18 +295,66 @@ class Meow_MFRH_Core {
 		return in_array( $id, $headers );
 	}
 
-	function generate_unique_filename( $actual, $dirname, $filename, $counter = null ) {
-		$new_filename = $filename;
-		if ( !is_null( $counter ) ) {
-			$whereisdot = strrpos( $new_filename, '.' );
-			$new_filename = substr( $new_filename, 0, $whereisdot ) . '-' . $counter
-				. '.' . substr( $new_filename, $whereisdot + 1 );
+	function generate_unique_filename( $method, $actual, $dirname, $filename, $counter = null ) {
+
+		// We should never have "none" since we only call this function when the method is not "none"
+		if ( $method === 'none' ) {
+			$this->log( "⚠️ Method is 'none', returning original filename." );
+			return $filename;
 		}
+
+		$new_filename = $filename;
+		$whereisdot   = strrpos( $new_filename, '.' );
+		$basename     = substr( $new_filename, 0, $whereisdot );
+		$extension    = substr( $new_filename, $whereisdot + 1 );
+
+
+		switch ( $method ) {
+			case 'increment':
+				if ( !is_null( $counter ) ) {
+					$new_filename = $basename . '-' . $counter . '.' . $extension;
+				}
+				break;
+			
+			case 'hash':
+				// Generate a hash-based suffix
+				$hash_suffix = substr( md5( $filename . time() . rand() ), 0, 8 );
+				$new_filename = $basename . '-' . $hash_suffix . '.' . $extension;
+				break;
+			
+			case 'random':
+				// Generate a random string suffix
+				$random_suffix = '';
+				$characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+				for ( $i = 0; $i < 8; $i++ ) {
+					$random_suffix .= $characters[rand(0, strlen($characters) - 1)];
+				}
+				$new_filename = $basename . '-' . $random_suffix . '.' . $extension;
+				break;
+			
+			default:
+				// Fallback to increment method
+				if ( !is_null( $counter ) ) {
+					$new_filename = $basename . '-' . $counter . '.' . $extension;
+				}
+				break;
+		}
+
 		if ( $actual == $new_filename )
 			return false;
-		if ( file_exists( $dirname . "/" . $new_filename ) )
-			return $this->generate_unique_filename( $actual, $dirname, $filename,
-				is_null( $counter ) ? 2 : $counter + 1 );
+		
+		if ( file_exists( $dirname . "/" . $new_filename ) ) {
+			// For hash and random methods, try again with a new suffix
+			if ( $method === 'hash' || $method === 'random' ) {
+				return $this->generate_unique_filename( $method, $actual, $dirname, $filename );
+			}
+			// For increment method, increment the counter
+			else if ( $method === 'increment' ) {
+				return $this->generate_unique_filename( $method, $actual, $dirname, $filename,
+					is_null( $counter ) ? 2 : $counter + 1 );
+			}
+		}
+		
 		return $new_filename;
 	}
 
@@ -399,6 +447,22 @@ SQL;
 			$this->get_option( 'on_upload_method_secondary', 'none' ),
 			$this->get_option( 'on_upload_method_tertiary', 'none' ),
 		];
+
+		// Check if all methods are set to "none"
+		$all_none_methods = true;
+		foreach ( $upload_methods as $method ) {
+			if ( $method !== 'none' ) {
+				$all_none_methods = false;
+				break;
+			}
+		}
+
+		if ( $all_none_methods ) {
+			$filename = apply_filters( 'mfrh_new_filename', $file['name'], $file['name'], 0 );
+			$file['name'] = $filename;
+
+			return $file;
+		}
 
 		$done = false;
 		foreach ( $upload_methods as $method ) {
@@ -541,6 +605,7 @@ SQL;
 			if ( !empty( $title ) ) {
 				$filename = $this->engine->new_filename( $title, $file['name'] );
 				if ( !is_null( $filename ) ) {
+					$filename = apply_filters( 'mfrh_new_filename', $filename, $file['name'], 0 );
 					$file['name'] = $filename;
 					$this->log( "👌 Title EXIF found." );
 					$this->log( "New file should be: " . $file['name'] );
@@ -600,6 +665,7 @@ SQL;
 
 			$filename = $this->engine->new_filename( $image_title, $file['name'] );
 			if ( !is_null( $filename ) ) {
+				$filename = apply_filters( 'mfrh_new_filename', $filename, $file['name'], 0 );
 				$file['name'] = $filename;
 				$this->log( "👌 Clean Upload found." );
 				$this->log( "New file should be: " . $file['name'] );
@@ -670,6 +736,7 @@ SQL;
 			$filename = $this->engine->new_filename( $filename, $file['name'] );
 
 			if ( $filename ) {
+				$filename = apply_filters( 'mfrh_new_filename', $filename, $file['name'], 0 );
 				$file['name'] = $filename;
 				$this->log( "👌 Vision AI found." );
 				$this->log( "New file should be: " . $file['name'] );
@@ -991,9 +1058,9 @@ SQL;
 		$existing_file = Meow_MFRH_Core::sensitive_file_exists( $new_filepath );
 		$case_issue = strtolower( $old_filename ) == strtolower( $new_filename );
 		if ( !$force_rename && $existing_file && !$case_issue ) {
-			$is_numbered = apply_filters( 'mfrh_numbered', false );
-			if ( $is_numbered ) {
-				$new_filename = $this->generate_unique_filename( $ideal, $directory, $new_filename );
+			$method = apply_filters( 'mfrh_numbered', false );
+			if ( $method ) {
+				$new_filename = $this->generate_unique_filename( $method, $ideal, $directory, $new_filename );
 				if ( !$new_filename ) {
 					$this->log( "😭 Numbered: No new filename." );
 					delete_post_meta( $id, '_require_file_renaming' );
@@ -2023,7 +2090,11 @@ SQL;
 		foreach ( $options as $key => $value ) {
 			if ( in_array( $key, $needs_registered_options ) ) {
 				//$options[ $key ] = $this->admin->is_registered() && $value;
-				$options[$key] = isset( $this->admin ) && $this->admin->is_registered() && $value;
+				$wanted_value  = $options[$key];
+				$invalid_value = is_string( $wanted_value ) ? 'none' : false;
+				$valid = isset( $this->admin ) && $this->admin->is_registered();
+
+				$options[$key] = $valid ? $value : $invalid_value;
 				continue;
 			}
 		}
@@ -2117,7 +2188,7 @@ SQL;
 		$needs_update = false;
 
 		$force_rename = $options['force_rename'];
-		$numbered_files = $options['numbered_files'];
+		$numbered_files = $options['numbered_files'] && $options['numbered_files'] !== 'none';
 
 		if ( $force_rename && $numbered_files ) {
 			$options['force_rename'] = false;
