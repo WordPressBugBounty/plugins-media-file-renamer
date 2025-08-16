@@ -1220,7 +1220,16 @@ SQL;
 			return;
 		}
 
-		$this->log( '⏰ Event: Attachment Fields updated.' );
+		// If the filename is being changed, we should not rename the file, we should only rename when a meta field is being changed.
+		$before_post_name = $post_before->post_name;
+		$after_post_name  = $post_after->post_name;
+
+		if ( $before_post_name != $after_post_name ) {
+			$this->log( "🟠 [Attachment updated] Filename was changed, no need to rename the file." );
+			return;
+		}
+
+		$this->log( '⏰ Event: Attachment updated.' );
 		$this->engine->rename( $post_after, null, false, 'updated' );
 	}
 

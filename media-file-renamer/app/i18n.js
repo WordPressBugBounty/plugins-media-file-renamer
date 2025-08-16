@@ -219,6 +219,7 @@ i18n.SETTINGS = {
   AI_ADVANCED: __( 'Advanced', 'media-file-renamer' ),
   ALL: __( 'All', 'media-file-renamer' ),
   POST_RENAME_EVENTS: __( 'Sync Fields (Post-Rename Events)', 'media-file-renamer' ),
+  FIELDS_SYNCING_DISABLED: __( 'You can not use the Fields Syncing features while the "Trigger on Attachment Update" option is enabled. As the media\'s metadata is being updated, it is going to trigger a rename, which would create an infinite loop of Renaming -> Syncing -> Renaming.', 'media-file-renamer' ),
   FIELDS_SYNCING: __( 'Fields Syncing', 'media-file-renamer' ),
   FIELDS_SYNCING_DESCRIPTION: __( 'The fields in the database will be synchronized, but the data already written in your HTML will not be overwritten.', 'media-file-renamer' ),
   AUTO_LOCK: __( 'Auto Lock', 'media-file-renamer' ),
