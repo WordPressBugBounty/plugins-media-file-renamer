@@ -2074,7 +2074,12 @@ SQL;
 				'display' => 'WPML',
 				'exists' => function_exists( 'icl_object_id' ),
 				'enabled' => true,
-			]
+			],
+			'woocommerce' => [
+				'display' => 'WooCommerce',
+				'exists' => class_exists( 'WooCommerce' ),
+				'enabled' => true,
+			],
 		];
 
 		return $options;

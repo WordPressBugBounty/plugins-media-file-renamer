@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 6.1.1
+Stable tag: 6.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,9 @@ If you only need an simple field in order to modify the filename, you can also t
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.1.2 (2025/08/27) =
+* Add: WooCommerce parser to automatically update URLs and filenames.
 
 = 6.1.1 (2025/08/16) =
 * Fix: Prevent file renaming during attachment updates to ensure file consistency.
