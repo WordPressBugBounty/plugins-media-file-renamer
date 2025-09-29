@@ -114,7 +114,7 @@ i18n.RENAMER_FIELDS = {
   LOCK_DESCRIPTION: __( 'Lock, to avoid future actions', 'media-file-renamer' ),
   FILENAME_ALREADY_EXISTS: __( "The filename proposed by {0} already exists. Automatically switched to {1}.", 'media-file-renamer' ),
   FILENAME_ALREADY_EXISTS_NO_SKIP: __( "The filename proposed by {0} already exists. Please select another method, rename manually or enable Advanced > Unique Filenames to always get a unique filename.", 'media-file-renamer' ),
-  ROLLBACK_TO_ORIGINAL: __( 'Rollback to original', 'media-file-renamer' ),
+  ROLLBACK_TO_ORIGINAL: __( 'Back to original filename.', 'media-file-renamer' ),
   RENAME_AUTOMATICALLY: __( 'Rename automatically', 'media-file-renamer' ),
   AUTO_RENAME: __( 'AUTO', 'media-file-renamer' ),
   AUTO_RENAME_ALREADY_MATCHING: __( 'The filename is already matching the auto method result, no need to auto rename.', 'media-file-renamer' ),
@@ -125,7 +125,8 @@ i18n.RENAMER_FIELDS = {
   MOVE: __( 'Move', 'media-file-renamer' ),
 
 
-
+  AI_SUGGEST_ALL_METADATA_TOOLTIP: __( 'Suggest all metadata fields based on the image content.', 'media-file-renamer' ),
+  AI_SUGGEST_FILENAME: __( 'Suggest a filename based on the image content.', 'media-file-renamer' ),
 
 };
 
