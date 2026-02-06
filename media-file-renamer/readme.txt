@@ -3,9 +3,9 @@ Contributors: TigrouMeow
 Tags: rename, file, media, move, seo
 Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
-Tested up to: 6.8
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.1.3
+Stable tag: 6.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,44 @@ If you only need an simple field in order to modify the filename, you can also t
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.2.0 (2026/01/27) =
+* Fix: Pending item counts now correctly exclude locked items when the "Hide Locked" option is enabled.  
+* Update: Validate and refresh security tokens to prevent failures.  
+* Add: Side Updates column in the Workflow table.
+
+= 6.1.9 (2026/01/23) =
+* Add: Bulk "Keep Filenames" button in the Dashboard "Pending" filter to quickly mark multiple files as fine.
+* Add: Visual workflows overview and an Expert Mode toggle in Settings, simplifying the UI for beginners or for when everything is set up.
+* Add: Intro Message checkbox to hide the introductory notice.  
+* Update: Reworked the Pending system with a scanner, proposed filenames and history tracking.  
+* Update: Replaced the "Logs & Debug" tab with a "Dev Tools" tab that’s disabled by default and can be enabled via Advanced settings, and reorganized related options including renaming the "Lock on Rename" settings.  
+* Fix: Improve Dashboard performance by caching proposed filenames, optimizing media counts, etc. So much faster on large libraries! 🎉
+* Fix: Fixed issues related to the Pending system.
+* Fix: Adjusted display logic to avoid visual glitches.
+
+= 6.1.7 (2026/01/05) =
+* Add: Support for using regular expressions to replace filenames in Advanced Rules.
+* Add: Fallback to plain text suggestions when vision features are disabled.
+* Update: Improved logging.
+
+= 6.1.6 (2025/12/16) =
+* Fix: Prevent the text-based rename workflow from being used when the vision feature is unavailable.
+* Fix: Ensure manual prompts are preserved.
+
+= 6.1.5 (2025/12/03) =
+* Fix: Prevent hidden locked items from affecting negative statistics.
+* Update: Rename the "numbered" option to "unique" to avoid conflicts.
+* 🎵 Discuss with others about Media File Renamer on [the Discord](https://discord.gg/bHDGh38).
+* 🌴 Keep us motivated with [a little review here](https://wordpress.org/support/plugin/media-file-renamer/reviews/). Thank you!
+* 🥰 If you want to help us, check our [Patreon](https://www.patreon.com/meowapps). Thank you!
+
+= 6.1.4 (2025/11/13) =
+* Update: Improved Settings UX.
+* Update: Enhanced Side Updates.  
+* Update: Separated AI Vision and AI Suggestions features.  
+* Fix: Corrected sanitize function. 
+* Fix: Display an error message on AI Suggest.
 
 = 6.1.3 (2025/09/29) =
 * Update: Better UI with a more modern and sleek design! 😋

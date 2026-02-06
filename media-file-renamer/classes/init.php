@@ -13,11 +13,11 @@ spl_autoload_register(function ( $class ) {
   if ( strpos( $class, 'Meow_MFRH' ) !== false ) {
     $file = MFRH_PATH . '/classes/' . str_replace( 'meow_mfrh_', '', strtolower( $class ) ) . '.php';
   }
-  else if ( strpos( $class, 'MeowCommon_' ) !== false ) {
-    $file = MFRH_PATH . '/common/' . str_replace( 'meowcommon_', '', strtolower( $class ) ) . '.php';
+  else if ( strpos( $class, 'MeowKit_MFRH_' ) !== false ) {
+    $file = MFRH_PATH . '/common/' . str_replace( 'meowkit_mfrh_', '', strtolower( $class ) ) . '.php';
   }
-  else if ( strpos( $class, 'MeowCommonPro_' ) !== false ) {
-    $file = MFRH_PATH . '/common/premium/' . str_replace( 'meowcommonpro_', '', strtolower( $class ) ) . '.php';
+  else if ( strpos( $class, 'MeowKitPro_MFRH_' ) !== false ) {
+    $file = MFRH_PATH . '/common/premium/' . str_replace( 'meowkitpro_mfrh_', '', strtolower( $class ) ) . '.php';
   }
   else if ( strpos( $class, 'MeowPro_MFRH' ) !== false ) {
     $file = MFRH_PATH . '/premium/' . str_replace( 'meowpro_mfrh_', '', strtolower( $class ) ) . '.php';
@@ -31,7 +31,7 @@ spl_autoload_register(function ( $class ) {
 require_once( MFRH_PATH . '/classes/api.php');
 
 // In admin or Rest API request (REQUEST URI begins with '/wp-json/')
-//if ( is_admin() || MeowCommon_Helpers::is_rest() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+//if ( is_admin() || MeowKit_MFRH_Helpers::is_rest() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 	global $mfrh_core;
 	$mfrh_core = new Meow_MFRH_Core();
   global $mfrh_rest;

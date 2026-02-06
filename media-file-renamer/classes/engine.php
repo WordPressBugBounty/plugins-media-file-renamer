@@ -173,7 +173,7 @@ class Meow_MFRH_Engine {
 		$post = null;
 		$output = array();
 
-		//MeowCommon_Helpers::timer_start("Rename");
+		//MeowKit_MFRH_Helpers::timer_start("Rename");
 
 		// Randomly throw an exception
 		// if ( rand( 0, 4 ) == 1 ) {
@@ -441,6 +441,12 @@ class Meow_MFRH_Engine {
 
 		// Update Renamer Meta
 		delete_post_meta( $id, '_require_file_renaming' ); // This media doesn't require renaming anymore
+		delete_post_meta( $id, '_mfrh_keep_filename' ); // Clear any "keep filename" decision since file was renamed
+		// Clear cached rename data (computed during Re-analyze Library)
+		delete_post_meta( $id, '_mfrh_proposed_filename' );
+		delete_post_meta( $id, '_mfrh_used_method' );
+		delete_post_meta( $id, '_mfrh_ideal_filename' );
+		delete_post_meta( $id, '_mfrh_proposed_filename_exists' );
 
 		if ( $manual && $this->core->get_option( 'autolock_manual', true ) ) {
 			// If it was renamed manually (including undo), lock the file
@@ -474,10 +480,12 @@ class Meow_MFRH_Engine {
 		}
 
 		// Post actions
-		//MeowCommon_Helpers::timer_start("Post Actions");
+		//MeowKit_MFRH_Helpers::timer_start("Post Actions");
+
+		$used_method = $method == "auto" ? $this->core->last_used_method : $method;
 
 		$this->core->add_to_media_history( $id, [
-			'method' => $method,
+			'method' => $used_method,
 			'metadata' => 'filename',
 			'original' => $old_filename,
 			'new' => $new_filename,
@@ -487,8 +495,8 @@ class Meow_MFRH_Engine {
 		$this->core->call_post_actions( $id, $post, $meta, $has_thumbnails, $orig_image_urls, $orig_attachment_url );
 		do_action( 'mfrh_media_renamed', $post, $old_filepath, $new_filepath, $undo, $method );
 
-		//MeowCommon_Helpers::timer_log_elapsed("Post Actions");
-		//MeowCommon_Helpers::timer_log_elapsed("Rename");
+		//MeowKit_MFRH_Helpers::timer_log_elapsed("Post Actions");
+		//MeowKit_MFRH_Helpers::timer_log_elapsed("Rename");
 		//error_log("===");
 
 		return $post;

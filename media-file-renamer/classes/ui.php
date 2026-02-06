@@ -3,26 +3,26 @@
 class Meow_MFRH_UI
 {
 	private $core = null;
-	private $media_library_field = 'none';
+
 
 	function __construct($core)
 	{
 		$this->core = $core;
-		$is_manual = $this->core->get_option('manual_rename', false);
-		$this->media_library_field = $this->core->get_option('media_library_field', false);
 
-		if ($this->core->get_option('dashboard', true)) {
-			add_action('admin_menu', array($this, 'admin_menu'));
-		}
-		add_filter('media_send_to_editor', array($this, 'media_send_to_editor'), 20, 3);
+		$show_in_library = $this->core->get_option('media_library_field', 'none') !== 'none';
+		if( $show_in_library) {
+			add_action('add_meta_boxes', array($this, 'add_rename_metabox'));
 
-		// Add the metabox and the column if it's either manual or automatic
-		if ($core->method != 'none' || $is_manual) {
 			add_filter('manage_media_columns', array($this, 'add_media_columns'));
 			add_action('manage_media_custom_column', array($this, 'manage_media_custom_column'), 10, 2);
-			add_action('add_meta_boxes', array($this, 'add_rename_metabox'));
 		}
 
+		$dashboard_enabled = $this->core->get_option('dashboard', true);
+		if( $dashboard_enabled ) {
+			add_action('admin_menu', array($this, 'admin_menu'));
+		}
+
+		add_filter('media_send_to_editor', array($this, 'media_send_to_editor'), 20, 3);
 		add_action('post-plupload-upload-ui', array($this, 'on_upload_method'));
 	}
 
@@ -99,9 +99,6 @@ class Meow_MFRH_UI
 
 	function attachment_fields($post)
 	{
-		if ($this->media_library_field === 'none') {
-			return;
-		}
 		if ($post) {
 			echo '
 				<div class="mfrh-renamer-field" data-id="' . $post->ID . '"></div>
@@ -112,18 +109,12 @@ class Meow_MFRH_UI
 
 	function add_media_columns($columns)
 	{
-		if ($this->media_library_field === 'none') {
-			return $columns;
-		}
 		$columns['mfrh_column'] = __('Renamer', 'media-file-renamer');
 		return $columns;
 	}
 
 	function manage_media_custom_column($column_name, $id)
 	{
-		if ($this->media_library_field === 'none') {
-			return;
-		}
 		if ($column_name === 'mfrh_column') {
 			echo '<div class="mfrh-renamer-field" data-id="' . $id . '"></div>';
 		}

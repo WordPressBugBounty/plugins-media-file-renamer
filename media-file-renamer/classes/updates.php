@@ -26,47 +26,113 @@ class Meow_MFRH_Updates {
 			add_action( 'mfrh_url_renamed', array( $this, 'action_update_excerpts' ), 10, 4 );
 		if ( $this->core->get_option( "update_postmeta", false ) )
 			add_action( 'mfrh_url_renamed', array( $this, 'action_update_postmeta' ), 10, 4 );
+		if ( $this->core->get_option( "update_database_options", false ) )
+			add_action( 'mfrh_url_renamed', array( $this, 'action_update_database_options' ), 10, 4 );
+
+
 		if ( $this->core->get_option( "rename_guid" ) )
 			add_action( 'mfrh_media_renamed', array( $this, 'action_rename_guid' ), 10, 4 );
+		
+	}
+
+	function action_update_database_options( $post, $orig_image_url, $new_image_url, $size ) {
+		global $wpdb;
+
+		// Get all options that contain the original filename
+		$query = $wpdb->prepare( "SELECT option_name, option_value FROM $wpdb->options 
+			WHERE option_value LIKE '%s'", '%' . $orig_image_url . '%' );
+		$option_entries = $wpdb->get_results( $query );
+		
+		if ( empty( $option_entries ) ) {
+			return array();
+		}
+
+		$updated_options = array();
+		
+		// Process each option individually
+		foreach ( $option_entries as $option ) {
+			$original_value = $option->option_value;
+			$new_value = $this->safe_replace_in_serialized_data( $original_value, $orig_image_url, $new_image_url );
+			
+			// Only update if the value actually changed
+			if ( $original_value !== $new_value ) {
+				// Execute update
+				$query = $wpdb->prepare( "UPDATE $wpdb->options 
+					SET option_value = %s
+					WHERE option_name = %s AND option_value = %s", 
+					$new_value, $option->option_name, $original_value );
+				$wpdb->query( $query );
+
+				// Reverse update for logging
+				$query_revert = $wpdb->prepare( "UPDATE $wpdb->options 
+					SET option_value = %s
+					WHERE option_name = %s AND option_value = %s", 
+					$original_value, $option->option_name, $new_value );
+				$this->core->log_sql( $query, $query_revert );
+				
+				$updated_options[] = $option->option_name;
+			}
+		}
+
+		if ( !empty( $updated_options ) ) {
+			$this->core->log( "🚀 Rewrite options $orig_image_url ➡️ $new_image_url (" . implode( ', ', $updated_options ) . ")" );
+			
+			// Clear options cache for updated options
+			foreach ( $updated_options as $option_name ) {
+				wp_cache_delete( $option_name, 'options' );
+			}
+		}
 	}
 
 	// Mass update of all the meta with the new filenames
 	function action_update_postmeta( $post, $orig_image_url, $new_image_url, $size ) {
 		global $wpdb;
 
-		$query = $wpdb->prepare( "SELECT post_id FROM $wpdb->postmeta 
+		// Get all meta entries that contain the original filename (excluding _original_filename)
+		$query = $wpdb->prepare( "SELECT post_id, meta_key, meta_value FROM $wpdb->postmeta 
 			WHERE meta_value LIKE '%s'
-			AND meta_key <> '_original_filename'
-			AND (TRIM(meta_value) = '%s'
-			OR TRIM(meta_value) = '%s'
-			)", $new_image_url, $orig_image_url, str_replace( ' ', '%20', $orig_image_url ) );
-		$ids = $wpdb->get_col( $query );
-		if ( empty( $ids ) ) {
+			AND meta_key <> '_original_filename'", '%' . $orig_image_url . '%' );
+
+		$meta_entries = $wpdb->get_results( $query );
+		
+		if ( empty( $meta_entries ) ) {
 			return array();
 		}
 
-		// Prepare SQL (WHERE IN)
-		$ids_to_update = array_map(function( $id ) { return "'" . esc_sql( $id ) . "'"; }, $ids );
-		$ids_to_update = implode(',', $ids_to_update);
+		$updated_ids = array();
+		
+		// Process each meta entry individually
+		foreach ( $meta_entries as $meta ) {
+			$original_value = $meta->meta_value;
+			$new_value = $this->safe_replace_in_serialized_data( $original_value, $orig_image_url, $new_image_url );
+			
+			// Only update if the value actually changed
+			if ( $original_value !== $new_value ) {
+				// Execute update
+				$query = $wpdb->prepare( "UPDATE $wpdb->postmeta 
+					SET meta_value = %s
+					WHERE post_id = %d AND meta_key = %s AND meta_value = %s", 
+					$new_value, $meta->post_id, $meta->meta_key, $original_value );
+				$wpdb->query( $query );
 
-		// Execute updates
-		$query = $wpdb->prepare( "UPDATE $wpdb->postmeta 
-			SET meta_value = %s
-			WHERE meta_key = '_wp_attached_file'
-			AND post_id IN (" . $ids_to_update . ")", $new_image_url );
-		$wpdb->query( $query );
+				// Reverse update for logging
+				$query_revert = $wpdb->prepare( "UPDATE $wpdb->postmeta 
+					SET meta_value = %s
+					WHERE post_id = %d AND meta_key = %s AND meta_value = %s", 
+					$original_value, $meta->post_id, $meta->meta_key, $new_value );
+				$this->core->log_sql( $query, $query_revert );
+				
+				$updated_ids[] = $meta->post_id;
+			}
+		}
 
-		// Reverse updates & log
-		$query_revert = $wpdb->prepare( "UPDATE $wpdb->postmeta 
-			SET meta_value = '%s'
-			WHERE meta_key = '_wp_attached_file'
-			AND post_id IN (" . $ids_to_update . ")", $orig_image_url );
-		$this->core->log_sql( $query, $query_revert );
-
-		$this->core->log( "🚀 Rewrite meta $orig_image_url ➡️ $new_image_url" );
-
-		// Reset meta cache
-		update_meta_cache( 'post', $ids );
+		if ( !empty( $updated_ids ) ) {
+			$this->core->log( "🚀 Rewrite meta $orig_image_url ➡️ $new_image_url" );
+			
+			// Reset meta cache for updated posts
+			$unique_ids = array_unique( $updated_ids );
+			update_meta_cache( 'post', $unique_ids );
+		}
 	}
 
 	// Mass update of all the articles with the new filenames
@@ -219,4 +285,51 @@ class Meow_MFRH_Updates {
 			}
 		}
 	}
+
+
+	#region Helpers for serialized data replacement
+
+	private function safe_replace_in_serialized_data( $data, $search, $replace ) {
+		// Check if the data is serialized
+		if ( is_serialized( $data ) ) {
+			try {
+				// Unserialize the data
+				$unserialized = unserialize( $data );
+				
+				// Recursively replace in the unserialized data
+				$updated = $this->recursive_replace( $unserialized, $search, $replace );
+				
+				// Re-serialize and return
+				return serialize( $updated );
+			} catch ( Exception $e ) {
+				// If unserialization fails, fall back to string replacement
+				// This might break serialized data, but it's better than losing the update entirely
+				return str_replace( $search, $replace, $data );
+			}
+		} else {
+			// Not serialized, just do a simple string replacement
+			return str_replace( $search, $replace, $data );
+		}
+	}
+
+	private function recursive_replace( $data, $search, $replace ) {
+		if ( is_string( $data ) ) {
+			return str_replace( $search, $replace, $data );
+		} elseif ( is_array( $data ) ) {
+			foreach ( $data as $key => $value ) {
+				$data[$key] = $this->recursive_replace( $value, $search, $replace );
+			}
+			return $data;
+		} elseif ( is_object( $data ) ) {
+			foreach ( $data as $key => $value ) {
+				$data->$key = $this->recursive_replace( $value, $search, $replace );
+			}
+			return $data;
+		} else {
+			// For other data types (int, bool, null, etc.), return as-is
+			return $data;
+		}
+	}
+
+	#endregion
 }

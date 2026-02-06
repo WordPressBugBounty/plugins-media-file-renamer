@@ -1,9 +1,9 @@
 <?php
 
 define( 'MFRH_OPTIONS', [
-	'media_library_field' => 'none',
+	'media_library_field' => 'full',
 
-	'auto_rename' => 'none',
+	'auto_rename' => 'media_title',
 	'auto_rename_secondary' => 'none',
 	'auto_rename_tertiary' => 'none',
 
@@ -19,6 +19,7 @@ define( 'MFRH_OPTIONS', [
 	'update_posts' => true,
 	'update_excerpts' => false,
 	'update_postmeta' => false,
+	'update_database_options' => false,
 	'trigger_on_attachment_updated' => false,
 
 	'parsers' => [
@@ -27,15 +28,16 @@ define( 'MFRH_OPTIONS', [
 
 	'undo' => false,
 	'move' => false,
-	'manual_rename' => false,
+	'manual_rename' => true,
 	'manual_rename_ai' => false,
 	'vision_rename_ai' => false,
-	'vision_rename_ai_cache' => 60 * 5,
+	'vision_rename_ai_cache' => 60 * 60 * 24,
 	'exif_context' => false,
 	'manual_prompt' => false,
 
+	'manual_sync_fields' => false,
 	'manual_sanitize' => true,
-	'numbered_files' => 'none',
+	'unique_files' => 'none',
 	'force_rename' => false,
 	'log' => false,
 	'logsql' => false,
@@ -46,6 +48,7 @@ define( 'MFRH_OPTIONS', [
 	'filename_prefix' => '',
 	'filename_suffix' => '',
 	'filename_replace' => [],
+	'filename_replace_regex' => [],
 
 	'acf_field_name' => false,
 	'images_only' => false,
@@ -58,14 +61,21 @@ define( 'MFRH_OPTIONS', [
 	'autolock_manual' => true,
 	'delay' => 100,
 	'clean_uninstall' => false,
+	'dev_tools' => false,
+	'intro_message' => true,
 	'mode' => 'rename', // rename or move
+	'expert' => false,
 	'dashboard' => true,
+	'filter_unrenamed' => true,
+	'filter_pending' => true,
+	'filter_renamed' => true,
 	'alt_field' => false,
 	'attached_to' => true,
 	'logs_path' => null,
 	'php_error_logs' => false,
 	'history' => false,
 	'history_limit' => 4,
+	'pending_analyzed_method' => null,
 	'metadata_title' => true,
 	'metadata_alt' => true,
 	'metadata_description' => false,
@@ -95,6 +105,8 @@ class Meow_MFRH_Core {
 	public $method_tertiary = 'none';
 
 	public $last_used_method = null;
+
+	private $nonce = null;
 	
 	public $upload_folder = null;
 	public $site_url = null;
@@ -122,6 +134,18 @@ class Meow_MFRH_Core {
 		'post_excerpt' => false,
 	];
 
+	private $default_prompts = [
+		'manual_prompt_alt' => 'The ALT is used mainly for SEO. It should be stuffed with keywords, but also describe the image. It should be a short sentence, typically starting with a uppercase letter and ending with a period.',
+
+		'manual_prompt_caption' => 'It should be a very short description of the image, what\'s happening on it, in one sentence which typically starts with a uppercase letter and ends with a period.',
+
+		'manual_prompt_filename' => 'Based on the rules we set before, actually generate 5 different filenames. They should be all quite different, from the less creative to the most creative. Separate them by a comma (,) and do not end with a period. Do not forget the extension which is used in Current Filename.',
+
+		'manual_prompt_title' => 'It should be a concise, catchy title for the image that summarizes its main subject or theme. The title should be capitalized like a headline, typically 5-10 words long, and not end with a period. It should be engaging and optimized for both users and SEO.',
+
+		'manual_prompt_description' => 'It should be an actual description the image, what\'s happening on it, in one paragraph. It is not adressing the user, but describing the image.',
+	];
+
 	private $option_name = 'mfrh_options';
 	private $log_file = 'media-file-renamer.log';
 	static private $plugin_option_name = 'mfrh_options';
@@ -138,7 +162,6 @@ class Meow_MFRH_Core {
 	}
 
 	function init() {
-		
 
 		// Before use get_option function, it has to set up Meow_MFRH_Admin.
 		// Part of the core, settings and stuff
@@ -151,7 +174,7 @@ class Meow_MFRH_Core {
 		}
 
 		// This should be checked after the init (is_rest checks the capacities)
-		$this->is_rest = MeowCommon_Helpers::is_rest();
+		$this->is_rest = MeowKit_MFRH_Helpers::is_rest();
 		$this->images_only = $this->get_option( 'images_only', false ) == 1;
 		$this->featured_only = $this->get_option( 'featured_only', false ) == 1;
 
@@ -174,6 +197,7 @@ class Meow_MFRH_Core {
 		add_filter( 'wp_handle_upload_prefilter', [ $this, 'on_upload_hook_prefilter' ] );
 
 		add_action( 'attachment_updated', array( $this, 'attachment_fields_to_save' ), 10, 3 );
+		add_action( 'updated_post_meta', array( $this, 'on_alt_text_updated' ), 10, 4 );
 
 		if ( $this->get_option( 'filename_prefix', '' ) != '' || $this->get_option( 'filename_suffix', '' ) != '' ) {
 			add_filter( 'mfrh_new_filename', [ $this, 'add_prefix_suffix' ], 10, 3 );
@@ -183,7 +207,10 @@ class Meow_MFRH_Core {
 			add_filter( 'mfrh_new_filename', [ $this, 'replace_filename' ], 10, 3 );
 		}
 		
-
+		if ( !empty( $this->get_option( 'filename_replace_regex', [] ) ) ) {
+			add_filter( 'mfrh_new_filename', [ $this, 'replace_filename_regex' ], 10, 3 );
+		}
+		
 		// Only for REST
 		if ( $this->is_rest ) {
 			new Meow_MFRH_Rest( $this );
@@ -344,15 +371,14 @@ class Meow_MFRH_Core {
 			return false;
 		
 		if ( file_exists( $dirname . "/" . $new_filename ) ) {
-			// For hash and random methods, try again with a new suffix
-			if ( $method === 'hash' || $method === 'random' ) {
-				return $this->generate_unique_filename( $method, $actual, $dirname, $filename );
-			}
-			// For increment method, increment the counter
-			else if ( $method === 'increment' ) {
+
+			if ( $method === 'increment' ) {
 				return $this->generate_unique_filename( $method, $actual, $dirname, $filename,
 					is_null( $counter ) ? 2 : $counter + 1 );
+			} else {
+				return $this->generate_unique_filename( $method, $actual, $dirname, $filename );
 			}
+			
 		}
 		
 		return $new_filename;
@@ -733,6 +759,11 @@ SQL;
 			}
 
 			$filename = $this->ai_suggestion( null, 'filename', $file['tmp_name'] );
+			if( !$filename ) {
+				$this->log( '⚠️ Vision AI: No filename suggestion returned.' );
+				return [ false, $file ];
+			}
+
 			$filename = $this->engine->new_filename( $filename, $file['name'] );
 
 			if ( $filename ) {
@@ -789,6 +820,8 @@ SQL;
 							$value = apply_filters( 'mfrh_exif_upload_' . $field, $newMetadata );
 							$my_image_meta [ $field ] = $value;
 						}
+					} else {
+						$this->log( '⚠️ Vision AI: No ' . $metadataType . ' suggestion returned.' );
 					}
 				}
 			}
@@ -916,6 +949,23 @@ SQL;
 		return $new;
 	}
 
+	function replace_filename_regex( $new, $old, $post ) {
+		$replacements = $this->get_option( 'filename_replace_regex', [] );
+
+		if ( !empty( $replacements ) ) {
+			foreach ( $replacements as $replacement ) {
+				$replacement = explode( '=>', $replacement );
+				if ( count( $replacement ) == 2 ) {
+					$pattern = '/' . str_replace( '/', '\/', $replacement[0] ) . '/';
+					$new = preg_replace( $pattern, $replacement[1], $new );
+				}
+			}
+		}
+
+		return $new;
+	}
+
+
 	// Return false if everything is fine, otherwise return true with an output
 	// which details the conditions and results about the renaming.
 	function check_attachment( $post, &$output = array(), $manual_filename = null, $force_rename = false, $preview = true, $skipped_methods = [] ) {
@@ -1024,6 +1074,17 @@ SQL;
 			if ( $base_for_rename !== '{VISION}') {
 				$new_filename = $this->engine->new_filename( $base_for_rename, $old_filename, null, $post );
 			} else {
+				// Check if this file was already renamed with AI Vision
+				$history = get_post_meta( $id, '_mfrh_history', true );
+				if ( !empty( $history ) && is_array( $history ) && !empty( $history['filename'] ) ) {
+					$last_filename = end( $history['filename'] );
+					if ( isset( $last_filename['method'] ) && $last_filename['method'] === 'vision' ) {
+						// Already renamed with AI Vision, no longer pending
+						delete_post_meta( $id, '_require_file_renaming' );
+						return false;
+					}
+					
+				}
 				// TODO: This should be probably handled by the UI, not here.
 				$new_filename = 'Auto with AI Vision...';
 			}
@@ -1058,11 +1119,11 @@ SQL;
 		$existing_file = Meow_MFRH_Core::sensitive_file_exists( $new_filepath );
 		$case_issue = strtolower( $old_filename ) == strtolower( $new_filename );
 		if ( !$force_rename && $existing_file && !$case_issue ) {
-			$method = apply_filters( 'mfrh_numbered', false );
+			$method = apply_filters( 'mfrh_unique', 'none' );
 			if ( $method ) {
 				$new_filename = $this->generate_unique_filename( $method, $ideal, $directory, $new_filename );
 				if ( !$new_filename ) {
-					$this->log( "😭 Numbered: No new filename." );
+					$this->log( "😭 Unique: No new filename." );
 					delete_post_meta( $id, '_require_file_renaming' );
 					return false;
 				}
@@ -1212,13 +1273,21 @@ SQL;
 
 	function attachment_fields_to_save( $post_id, $post_after, $post_before ) {
 
-		$should_rename = $this->get_option( 'trigger_on_attachment_update', false );
-		if ( !$should_rename ) { return; }	
-
 		// Check that it's actually an attachment post type
 		if ( get_post_type( $post_id ) !== 'attachment' ) {
 			return;
 		}
+
+		// Clear cached proposed filename if title changed (since it may affect the ideal filename)
+		if ( $post_before->post_title !== $post_after->post_title ) {
+			delete_post_meta( $post_id, '_mfrh_proposed_filename' );
+			delete_post_meta( $post_id, '_mfrh_used_method' );
+			delete_post_meta( $post_id, '_mfrh_ideal_filename' );
+			delete_post_meta( $post_id, '_mfrh_proposed_filename_exists' );
+		}
+
+		$should_rename = $this->get_option( 'trigger_on_attachment_update', false );
+		if ( !$should_rename ) { return; }
 
 		// If the filename is being changed, we should not rename the file, we should only rename when a meta field is being changed.
 		$before_post_name = $post_before->post_name;
@@ -1231,6 +1300,22 @@ SQL;
 
 		$this->log( '⏰ Event: Attachment updated.' );
 		$this->engine->rename( $post_after, null, false, 'updated' );
+	}
+
+	/**
+	 * Clear cached proposed filename when alt text changes.
+	 */
+	function on_alt_text_updated( $meta_id, $post_id, $meta_key, $meta_value ) {
+		if ( $meta_key !== '_wp_attachment_image_alt' ) {
+			return;
+		}
+		if ( get_post_type( $post_id ) !== 'attachment' ) {
+			return;
+		}
+		delete_post_meta( $post_id, '_mfrh_proposed_filename' );
+		delete_post_meta( $post_id, '_mfrh_used_method' );
+		delete_post_meta( $post_id, '_mfrh_ideal_filename' );
+		delete_post_meta( $post_id, '_mfrh_proposed_filename_exists' );
 	}
 
 	function log_sql( $data, $antidata ) {
@@ -1275,6 +1360,27 @@ SQL;
 		}
 
 		return $path;
+	}
+
+	public function get_nonce( $force = false ) {
+		// NONCE GENERATION LOGIC:
+		// - For logged-out users (unless forced): Return null - they must use /start_session endpoint
+		// - For logged-in users: Create user-specific nonce tied to their WP session
+		// - With $force=true: Always create nonce (used by /start_session endpoint)
+		//
+		// This ensures logged-in users get a nonce matching their auth context on page load,
+		// preventing rest_cookie_invalid_nonce errors when cookies are present.
+		if ( !$force && !is_user_logged_in() ) {
+		return null;
+		}
+
+		if ( isset( $this->nonce ) ) {
+		return $this->nonce;
+		}
+
+		$this->nonce = wp_create_nonce( 'wp_rest' );
+
+		return $this->nonce;
 	}
 
 	function log( $data = null ) {
@@ -1629,40 +1735,54 @@ SQL;
 		];
 
 		// Append specifications for the new metadata.
+		$use_manual_prompts = $this->get_option( 'manual_prompt', false );
 		$length = $lengths[$readableType];
 		$prompt .= "This new $readableType must be shorter than $length, SEO-optimized, humanly-readable. Only return the $readableType.";
 		// If it's a description, mention that it should describe the image, of what's happening on it in one paragraph.
 		if ( $metadataType === 'description' ) {
-			$prompt .= " " . $this->get_option( 'manual_prompt_description', 'It should be an actual description the image, what\'s happening on it, in one paragraph. It is not adressing the user, but describing the image.' );
+			$prompt .= " " . ( $use_manual_prompts ? $this->get_option( 'manual_prompt_description', $this->default_prompts['manual_prompt_description'] ) : $this->default_prompts['manual_prompt_description'] );
 		}
 		else if ( $metadataType === 'caption' ) {
-			$prompt .= " " . $this->get_option( 'manual_prompt_caption', 'It should be a very short description of the image, what\'s happening on it, in one sentence which typically starts with a uppercase letter and ends with a period.' );
+			$prompt .= " " . ( $use_manual_prompts ? $this->get_option( 'manual_prompt_caption', $this->default_prompts['manual_prompt_caption'] ) : $this->default_prompts['manual_prompt_caption'] ) ;
 		}
 		else if ( $metadataType === 'alternative text' ) {
-			$prompt .= " " . $this->get_option( 'manual_prompt_alt', 'The ALT is used mainly for SEO. It should be stuffed with keywords, but also describe the image. It should be a short sentence, typically starting with a uppercase letter and ending with a period.' );
+			$prompt .= " " . ( $use_manual_prompts ? $this->get_option( 'manual_prompt_alt', $this->default_prompts['manual_prompt_alt'] ) : $this->default_prompts['manual_prompt_alt'] );
 		}
 		else if ( $metadataType === 'filename' ) {
-			$prompt .= " " . $this->get_option( 'manual_prompt_filename', 'Based on the rules we set before, actually generate 5 different filenames. They should be all quite different, from the less creative to the most creative. Separate them by a comma (,) and do not end with a period. Do not forget the extension which is used in Current Filename.' );
+			$prompt .= " " .  ( $use_manual_prompts ? $this->get_option( 'manual_prompt_filename', $this->default_prompts['manual_prompt_filename'] ) : $this->default_prompts['manual_prompt_filename'] );
 		}
 		else if ( $metadataType === 'title' ) {
-			$prompt .= " " . $this->get_option( 'manual_prompt_title', 'It should be a concise, catchy title for the image that summarizes its main subject or theme. The title should be capitalized like a headline, typically 5-10 words long, and not end with a period. It should be engaging and optimized for both users and SEO.' );
+			$prompt .= " " . ( $use_manual_prompts ? $this->get_option( 'manual_prompt_title', $this->default_prompts['manual_prompt_title'] ) : $this->default_prompts['manual_prompt_title'] );
 		}
 
 		// Give the user a chance to modify the prompt.
 		$prompt = apply_filters( 'mfrh_ai_prompt', $prompt, $metadataType, $entry );
 
 		// Get new metadata, first trying a filter, then defaulting to an AI query.
-		$newMetadata = apply_filters( 'mfrh_vision_suggestion', null, $mediaId, $binary_path, $prompt );
-		if ( empty ( $newMetadata ) ) {
+		$use_vision = $this->get_option( 'vision_rename_ai', false );
+		$newMetadata = '';
+
+		if( $use_vision ) {
+			$this->log( '🤖 Using Vision for a media query.' );
+			$newMetadata = apply_filters( 'mfrh_vision_suggestion', null, $mediaId, $binary_path, $prompt );
+		} 
+		
+		if( !$use_vision ) {
 			global $mwai;
 			if ( is_null( $mwai ) ) {
 				$this->log( '🚫 AI Engine is missing for a text query.' );
 				return '';
 			}
 
-			$newMetadata = $mwai->simpleTextQuery( $prompt, [ 'max_tokens' => 512, 'scope' => 'renamer' ] );
+			$this->log( '🤖 Using Text for a media query.' );
+			$newMetadata = $mwai->simpleTextQuery( $prompt, [ 'scope' => 'renamer' ] );			
 		}
 
+		if( empty( $newMetadata ) ) {
+			$this->log( '🚫 Vision AI Engine did not return any suggestion for a media query.' );
+			return '';
+		}
+	
 		// Clean up the new metadata.
 		$newMetadata = trim( $newMetadata );
 		$newMetadata = str_replace( ['"', "'"], '', $newMetadata );
@@ -1749,9 +1869,10 @@ SQL;
 		$entry->thumbnail_url = wp_get_attachment_thumb_url( $entry->ID );
 		$entry->url = wp_get_attachment_url( $entry->ID );
 
-		// After September 14th 2023:
-		$path = get_post_meta( $entry->ID, '_wp_attached_file', true );
-		if ( !empty( $path ) ) {
+		// Extract path from current_filename (already fetched in query, no need for extra get_post_meta call)
+		$attached_file = $entry->current_filename;
+		if ( !empty( $attached_file ) ) {
+			$path = $attached_file;
 			if ( substr( $path, 0, 1 ) !== '/' ) {
 				$path = '/' . $path;
 			}
@@ -1762,52 +1883,46 @@ SQL;
 			$entry->issues[] = 'missing_file';
 		}
 
-		// Before September 14th 2023:
-		// if ( !empty( $metadata ) || !isset( $metadata['file'] ) ) {
-		// 	$entry->metadata = $metadata;
-		// 	$mediaFolder = get_attached_file( $entry->ID );
-		// 	$entry->path = '/' . pathinfo( $metadata['file'], PATHINFO_DIRNAME );
-		// }
-		// else {
-		// 	// For some reason, the metadata is sometimes missing from Media entries.
-		// 	// This will try to recover the URL from the attachment URL.
-		// 	$url = wp_get_attachment_url( $entry->ID );
-		// 	$url = substr( $url, strpos( $url, '/uploads/' ) + 9 );
-		// 	if ( !empty( $url ) ) {
-		// 		$entry->path = '/' . pathinfo( $url, PATHINFO_DIRNAME );
-		// 	}
-		// 	else {
-		// 		$entry->issues[] = 'missing_metadata';
-		// 	}
-		// }
-
 		$entry->current_filename = pathinfo( $entry->current_filename, PATHINFO_BASENAME );
 		$entry->locked = $entry->locked === '1';
 		$entry->pending = $entry->pending === '1';
 		$entry->proposed_filename = null;
 		$lock_enabled = $this->get_option( 'lock' );
-		$force_rename = $this->get_option( 'force_rename' );
+
 		if ( !$lock_enabled || !$entry->locked ) {
-			$output = [];
-			// TODO: We should optimize this check_attachment function one day.
-			$this->check_attachment( get_post( $entry->ID, ARRAY_A ), $output, null, $force_rename );
-			if ( isset( $output['ideal_filename'] ) ) {
-				$entry->ideal_filename = $output['ideal_filename'];
+			// Use cached values from Re-analyze Library if available (much faster)
+			$has_cached = !empty( $entry->cached_proposed_filename );
+			if ( $has_cached ) {
+				$entry->proposed_filename = $entry->cached_proposed_filename;
+				$entry->proposed_filename_exists = $entry->cached_proposed_filename_exists === '1';
+				$entry->used_method = $entry->cached_used_method;
+				$entry->ideal_filename = $entry->cached_ideal_filename;
+			} else {
+				// Fallback for media not yet analyzed - compute on the fly
+				$force_rename = $this->get_option( 'force_rename' );
+				$output = [];
+				$this->check_attachment( get_post( $entry->ID, ARRAY_A ), $output, null, $force_rename );
+				if ( isset( $output['ideal_filename'] ) ) {
+					$entry->ideal_filename = $output['ideal_filename'];
+				}
+				if ( isset( $output['proposed_filename'] ) ) {
+					$entry->proposed_filename = $output['proposed_filename'];
+					$entry->proposed_filename_exists = $output['proposed_filename_exists'];
+				}
+				if ( isset( $output['used_method'] ) ) {
+					$entry->used_method = $output['used_method'];
+				}
+				if ( isset( $output['skipped_methods'] ) ) {
+					$entry->skipped_methods = $output['skipped_methods'];
+				}
 			}
-			if ( isset( $output['proposed_filename'] ) ) {
-				$entry->proposed_filename = $output['proposed_filename'];
-				$entry->proposed_filename_exists = $output['proposed_filename_exists'];
-			}
-
-			if( isset( $output['used_method'] ) ) {
-				$entry->used_method = $output['used_method'];
-			}
-
-			if( isset( $output['skipped_methods'] ) ) {
-				$entry->skipped_methods = $output['skipped_methods'];
-			}
-			//error_log( print_r( $output, 1 ) );
 		}
+
+		// Clean up cached fields from the response (not needed by frontend)
+		unset( $entry->cached_proposed_filename );
+		unset( $entry->cached_used_method );
+		unset( $entry->cached_ideal_filename );
+		unset( $entry->cached_proposed_filename_exists );
 	}
 
 	// Call the actions so that the plugin's plugins can update everything else (than the files)
@@ -2037,7 +2152,10 @@ SQL;
 	function reset_metadata() {
 		global $wpdb;
 		// Delete the specific meta keys to reset the status
-		$count = $wpdb->query( "DELETE FROM $wpdb->postmeta WHERE meta_key IN ('_require_file_renaming', '_manual_file_renaming', '_original_filename')" );
+		$count = $wpdb->query( "DELETE FROM $wpdb->postmeta WHERE meta_key IN (
+			'_require_file_renaming', '_manual_file_renaming', '_original_filename',
+			'_mfrh_proposed_filename', '_mfrh_used_method', '_mfrh_ideal_filename', '_mfrh_proposed_filename_exists'
+		)" );
 		return $count;
 	}
 
@@ -2047,48 +2165,18 @@ SQL;
 	}
 
 	function list_options() {
-		$options = get_option( $this->option_name, null );
-		foreach ( MFRH_OPTIONS as $key => $value ) {
-			if ( !isset( $options[$key] ) ) {
-				$options[$key] = $value;
-			}
-		}
+		$options = [];
 
-		$options['parsers'] = [
-			'elementor' => [
-				'display' => 'Elementor',
-				'exists' => defined( 'ELEMENTOR_VERSION' ),
-				'enabled' => true,
-			],
-			'oxygen' => [
-				'display' => 'Oxygen Builder',
-				'exists' => class_exists( 'CT_Component' ),
-				'enabled' => true,
-			],
-			'beaver_builder' => [
-				'display' => 'Beaver Builder',
-				'exists' => class_exists( 'FLBuilderModel' ),
-				'enabled' => true,
-			],
-			'wpml' => [
-				'display' => 'WPML',
-				'exists' => function_exists( 'icl_object_id' ),
-				'enabled' => true,
-			],
-			'woocommerce' => [
-				'display' => 'WooCommerce',
-				'exists' => class_exists( 'WooCommerce' ),
-				'enabled' => true,
-			],
-		];
-
+		$saved_options = get_option( $this->option_name, null );
+		$options = $this->check_options( $saved_options );
+		
 		return $options;
 	}
 
 	function needs_registered_options() {
 		return array(
 			'convert_to_ascii',
-			'numbered_files',
+			'unique_files',
 			'sync_alt',
 			'sync_media_title',
 			'force_rename',
@@ -2098,7 +2186,6 @@ SQL;
 
 	function get_all_options() {
 		$options = $this->list_options();
-		$options = $this->check_options( $options );
 
 		$needs_registered_options = $this->needs_registered_options();
 		foreach ( $options as $key => $value ) {
@@ -2137,27 +2224,61 @@ SQL;
 		return [ $options, $validation_result['result'], $validation_result['message'] ];
 	}
 
-	// Upgrade from the old way of storing options to the new way.
+	// Make sure the options are all there and correct.
 	function check_options( $options = [] ) {
-		$plugin_options = $this->list_options();
-		$options = empty( $options ) ? [] : $options;
+
+		$options = empty( $options ) || !is_array( $options ) ? [] : $options;
 		$hasChanges = false;
-		foreach ( $plugin_options as $option => $default ) {
-			// The option already exists
-			if ( isset( $options[$option] ) ) {
-				continue;
+
+		foreach ( MFRH_OPTIONS as $key => $value ) {
+			if ( !isset( $options[$key] ) ) {
+				$options[$key] = $value;
+				$hasChanges = true;
 			}
-			// The option does not exist, so we need to add it.
-			// Let's use the old value if any, or the default value.
-			$options[$option] = get_option( 'mfrh_' . $option, $default );
-			delete_option( 'mfrh_' . $option );
-			$hasChanges = true;
 		}
+
+		$parsers = [
+			'elementor' => [
+				'display' => 'Elementor',
+				'exists' => defined( 'ELEMENTOR_VERSION' ),
+				'enabled' => true,
+			],
+			'oxygen' => [
+				'display' => 'Oxygen Builder',
+				'exists' => class_exists( 'CT_Component' ),
+				'enabled' => true,
+			],
+			'beaver_builder' => [
+				'display' => 'Beaver Builder',
+				'exists' => class_exists( 'FLBuilderModel' ),
+				'enabled' => true,
+			],
+			'wpml' => [
+				'display' => 'WPML',
+				'exists' => function_exists( 'icl_object_id' ),
+				'enabled' => true,
+			],
+			'woocommerce' => [
+				'display' => 'WooCommerce',
+				'exists' => class_exists( 'WooCommerce' ),
+				'enabled' => true,
+			],
+		];
+
+		foreach ( $parsers as $key => $parser ) {
+			if ( !isset( $options['parsers'][$key] ) ) {
+				$options['parsers'][$key] = $parser;
+				$hasChanges = true;
+			} else {
+				// Keep the display name and exists status, but not the enabled status.
+				$options['parsers'][$key]['display'] = $parser['display'];
+				$options['parsers'][$key]['exists']  = $parser['exists'];
+			}
+		}
+
 		if ( $hasChanges ) {
 			update_option( $this->option_name , $options );
 		}
-
-
 
 		return $options;
 	}
@@ -2199,12 +2320,19 @@ SQL;
 		$result = true;
 		$message = null;
 
+		// Reset some options if not registered
+		if( !$this->admin->is_registered() ) {
+			$options['convert_to_ascii'] = false;
+			$options['vision_rename_ai'] = false;
+			$options['logsql'] = false;
+		}
+
 		$needs_update = false;
 
 		$force_rename = $options['force_rename'];
-		$numbered_files = $options['numbered_files'] && $options['numbered_files'] !== 'none';
+		$unique_files = $options['unique_files'] && $options['unique_files'] !== 'none';
 
-		if ( $force_rename && $numbered_files ) {
+		if ( $force_rename && $unique_files ) {
 			$options['force_rename'] = false;
 			$result = false;
 			$message = __( 'Force Rename and Numbered Files cannot be used at the same time. Please use Force Rename only when you are trying to repair a broken install. For now, Force Rename has been disabled.', 'media-file-renamer' );
@@ -2223,7 +2351,7 @@ SQL;
 			$needs_update = true;
 		}
 
-		$isVisionEnabled = $options['vision_rename_ai'] && $options['manual_rename_ai'];
+		$isVisionEnabled = $options['vision_rename_ai'];
 		if ( !$isVisionEnabled ) {
 
 			$visionRename = $options['auto_rename'] === 'vision' || $options['auto_rename_secondary'] === 'vision' || $options['auto_rename_tertiary'] === 'vision';
@@ -2248,22 +2376,12 @@ SQL;
 			
 		}
 
-		
 		if ( $options['manual_prompt'] ) {
 			$prompt_types = ['title', 'alt', 'description', 'caption', 'filename'];
 			
 			foreach ( $prompt_types as $type ) {
 				$option_key = 'manual_prompt_' . $type;
 				if ( empty( $options[$option_key] ) ) {
-					$options[$option_key] = MFRH_OPTIONS[$option_key];
-					$needs_update = true;
-				}
-			}
-		} else {
-			
-			foreach ( ['title', 'alt', 'description', 'caption', 'filename'] as $type ) {
-				$option_key = 'manual_prompt_' . $type;
-				if ( $options[$option_key] !== MFRH_OPTIONS[$option_key] ) {
 					$options[$option_key] = MFRH_OPTIONS[$option_key];
 					$needs_update = true;
 				}

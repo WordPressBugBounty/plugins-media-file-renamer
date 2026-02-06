@@ -21,3 +21,4 @@ foreach ( $options as $option ) {
 $wpdb->query( "DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '_manual_file_renaming'" );
 $wpdb->query( "DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '_require_file_renaming'" );
 $wpdb->query( "DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '_original_filename'" );
+$wpdb->query( "DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '_mfrh_keep_filename'" );
