@@ -88,10 +88,11 @@ class Meow_MFRH_Updates {
 	function action_update_postmeta( $post, $orig_image_url, $new_image_url, $size ) {
 		global $wpdb;
 
-		// Get all meta entries that contain the original filename (excluding _original_filename)
-		$query = $wpdb->prepare( "SELECT post_id, meta_key, meta_value FROM $wpdb->postmeta 
+		// Get all meta entries that contain the original filename
+		// Excluding internal meta keys that are already handled by WordPress or the plugin
+		$query = $wpdb->prepare( "SELECT post_id, meta_key, meta_value FROM $wpdb->postmeta
 			WHERE meta_value LIKE '%s'
-			AND meta_key <> '_original_filename'", '%' . $orig_image_url . '%' );
+			AND meta_key NOT IN ('_original_filename', '_wp_attached_file')", '%' . $orig_image_url . '%' );
 
 		$meta_entries = $wpdb->get_results( $query );
 		

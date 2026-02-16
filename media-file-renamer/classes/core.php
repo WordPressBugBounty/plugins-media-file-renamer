@@ -562,6 +562,12 @@ SQL;
 			}
 		}
 
+		// If no upload method handled the file, check if it should be marked as pending.
+		if ( !$done ) {
+			$output = [];
+			$this->check_attachment( get_post( $id, ARRAY_A ), $output );
+		}
+
 		$this->log( "👌 Done." );
 	}
 

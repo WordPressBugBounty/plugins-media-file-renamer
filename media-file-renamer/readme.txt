@@ -5,23 +5,35 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.2.0
+Stable tag: 6.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Rename filenames and media metadata for SEO and tidyness. Using AI, manually, in bulk, or in so many other ways!
+Rename filenames and media metadata for SEO and tidiness. Using AI, manually, in bulk, or in so many other ways!
 
 == Description ==
 
-Automatically gives your media files and their details — Title, ALT Text, and Description — a new, better name, for SEO and tidiness. It's smart enough to offer suggestions using various methods, including AI, and lets you make changes manually too.
+**Media File Renamer is the smart, AI-powered solution for renaming your WordPress media files.** It automatically gives your media files and their metadata (Title, ALT Text, Description) clean, SEO-friendly names. Whether you're uploading new files or updating your entire media library, this plugin makes it easy.
 
-Whether you're uploading new files or want to update your whole media library at once, this plugin makes it easy and does a lot of the work for you.
+It's the perfect companion to [SEO Engine](https://wordpress.org/plugins/seo-engine/) for a complete SEO workflow! Explore [our official site](https://meowapps.com/media-file-renamer/) to get started.
 
-Your WordPress becomes cleaner, more organized, and more efficient. Please visit the official website for more information: Media File Renamer.
+=== Key Features ===
+
+🤖 **AI-Powered Renaming**
+Use AI Vision to analyze your images and generate meaningful filenames automatically. Smart suggestions help you pick the best name every time.
+
+📁 **Bulk Operations**
+Rename your entire media library at once, or work through files one by one. Filter by status (Pending, Renamed, Locked) to stay organized.
+
+🔄 **Metadata Sync**
+Automatically update Title, ALT Text, Caption, and Description after renaming. Keep everything consistent without the manual work.
+
+🔒 **Lock System**
+Lock files to prevent accidental renaming. Auto-lock after manual or automatic renames for extra safety.
 
 === Compatibility ===
 
-Media File Renamer is compatible with a wide range of WordPress features and plugins, including support for Retina and WebP images, re-scaled images from WP 5.3 onwards, PDF Thumbnails, UTF8 files, and optimized images. It's designed to handle various encoding types, ensuring your media library is always organized. Some page builders like Avia Layout Builder may limit renaming due to encryption.
+Media File Renamer is compatible with a wide range of WordPress features and plugins, including support for Retina and WebP images, re-scaled images from WP 5.3 onwards, PDF Thumbnails, UTF8 files, and optimized images. It handles various encoding types, ensuring your media library is always organized. Some page builders like Avia Layout Builder may limit renaming due to encryption.
 
 === Pro Version ===
 
@@ -29,11 +41,11 @@ In the [Pro Version](https://meowapps.com/media-file-renamer/), you'll find many
 
 === Important ===
 
-Renaming or moving files can be risky, so it's vital to take precautions and make a backup before using Media File Renamer. Start by renaming files individually to ensure page references update correctly, as some plugins might interfere with the process. If issues arise post-renaming, try clearing your cache to fix outdated references. Still facing problems? Utilize the Undo feature to revert filenames. For further assistance or to explore more solutions, visit our [Questions & Issues](https://meowapps.com/media-file-renamer/issues/) support page.
+Renaming or moving files can be risky, so it's vital to take precautions and make a backup before using Media File Renamer. Start by renaming files individually to ensure page references update correctly, as some plugins might interfere with the process. If issues arise post-renaming, try clearing your cache to fix outdated references. Still facing problems? Use the Undo feature to revert filenames. For further assistance, visit our [support page](https://meowapps.com/media-file-renamer/issues/).
 
 === A Simpler Plugin ===
 
-If you only need an simple field in order to modify the filename, you can also try [Phoenix Media Rename](https://wordpress.org/plugins/phoenix-media-rename). It's simpler, and just does that. Yes, we are friends!
+If you only need a simple field to modify the filename, you can also try [Phoenix Media Rename](https://wordpress.org/plugins/phoenix-media-rename). It's simpler, and just does that. Yes, we are friends!
 
 == Installation ==
 
@@ -55,6 +67,15 @@ If you only need an simple field in order to modify the filename, you can also t
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.2.1 (2026/02/16) =
+* Fix: Newly uploaded images are now correctly marked as pending even when no “On Upload” method is selected.
+* Update: Revamped the plugin description in readme.txt with clearer wording and proper links.
+* Fix: Resolved an issue where enabling the Post Meta option could double folder paths by excluding the _wp_attached_file meta from updates.
+* Update: Refreshed the Meow Common library to improve multisite support and overall stability.
+* 🎵 Discuss with others about Media File Renamer on [the Discord](https://discord.gg/bHDGh38).
+* 🌴 Keep us motivated with [a little review here](https://wordpress.org/support/plugin/media-file-renamer/reviews/). Thank you!
+* 🥰 If you want to help us, check our [Patreon](https://www.patreon.com/meowapps). Thank you!
 
 = 6.2.0 (2026/01/27) =
 * Fix: Pending item counts now correctly exclude locked items when the "Hide Locked" option is enabled.  
