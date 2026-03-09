@@ -36,6 +36,14 @@ class Meow_MFRH_Updates {
 	}
 
 	function action_update_database_options( $post, $orig_image_url, $new_image_url, $size ) {
+
+		list( $orig_image_url, $new_image_url ) = apply_filters( 'mfrh_update_database_options_urls', array( $orig_image_url, $new_image_url ) );
+
+		if( empty( $orig_image_url ) || empty( $new_image_url ) ) {
+			$this->core->log( "⚠️ Missing original or new image URL for database options update. Skipping." );
+			return;
+		}
+
 		global $wpdb;
 
 		// Get all options that contain the original filename
@@ -44,6 +52,7 @@ class Meow_MFRH_Updates {
 		$option_entries = $wpdb->get_results( $query );
 		
 		if ( empty( $option_entries ) ) {
+			$this->core->log( "⚠️ No options found containing the original image URL. Skipping." );
 			return array();
 		}
 
@@ -87,6 +96,9 @@ class Meow_MFRH_Updates {
 	// Mass update of all the meta with the new filenames
 	function action_update_postmeta( $post, $orig_image_url, $new_image_url, $size ) {
 		global $wpdb;
+
+		// Apply a filter to let plugins/users modify the update urls ( original and new )
+		list( $orig_image_url, $new_image_url ) = apply_filters( 'mfrh_update_postmeta_urls', array( $orig_image_url, $new_image_url ) );
 
 		// Get all meta entries that contain the original filename
 		// Excluding internal meta keys that are already handled by WordPress or the plugin
@@ -160,6 +172,9 @@ class Meow_MFRH_Updates {
 
 	function bulk_rename_content( $orig_image_url, $new_image_url ) {
 		global $wpdb;
+
+		// Apply a filter to let plugins/users modify the update urls ( original and new )
+		list( $orig_image_url, $new_image_url ) = apply_filters( 'mfrh_update_content_urls', array( $orig_image_url, $new_image_url ) );	
 		
 		// Get the IDs that require an update
 		$query = $wpdb->prepare( "SELECT ID FROM $wpdb->posts 
@@ -192,6 +207,8 @@ class Meow_MFRH_Updates {
 
 	function bulk_rename_excerpts( $orig_image_url, $new_image_url ) {
 		global $wpdb;
+
+		list( $orig_image_url, $new_image_url ) = apply_filters( 'mfrh_update_excerpts_urls', array( $orig_image_url, $new_image_url ) );
 		
 		// Get the IDs that require an update
 		$query = $wpdb->prepare( "SELECT ID FROM $wpdb->posts 
@@ -314,6 +331,11 @@ class Meow_MFRH_Updates {
 	}
 
 	private function recursive_replace( $data, $search, $replace ) {
+
+		if ( empty( $search ) ) {
+			return $data; // Avoid infinite loop if search is empty
+		}
+
 		if ( is_string( $data ) ) {
 			return str_replace( $search, $replace, $data );
 		} elseif ( is_array( $data ) ) {

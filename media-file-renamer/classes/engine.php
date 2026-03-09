@@ -165,6 +165,8 @@ class Meow_MFRH_Engine {
 			$this->core->log( "🚫 The file couldn't be renamed from $old to $new." );
 			return false;
 		}
+		
+		$this->core->log( "⚙️ PHP rename() function: " . basename( $old ) . " ➡️ " . basename( $new ) );	
 		return true;
 	}
 
@@ -338,9 +340,7 @@ class Meow_MFRH_Engine {
 		$this->core->log( "✅ File $old_filepath ➡️ $new_filepath" );
 		do_action( 'mfrh_path_renamed', $post, $old_filepath, $new_filepath );
 
-		// Rename the main media file in WebP if it exists.
-		$this->rename_alternative_image_formats( $old_filepath, $old_ext, $new_filepath,
-			$new_ext, $case_issue, $force_rename, $post );
+		
 
 		if ( $meta ) {
 			if ( isset( $meta['file'] ) && !empty( $meta['file'] ) )
@@ -389,10 +389,14 @@ class Meow_MFRH_Engine {
 				// Double check files exist before trying to rename.
 				if ( $force_rename || ( file_exists( $meta_old_filepath ) && 
 						( ( !file_exists( $meta_new_filepath ) ) || is_writable( $meta_new_filepath ) ) ) ) {
+					// Get the actual extension of the thumbnail file (important for PDF thumbnails which are .jpg)
+					$meta_old_ext = pathinfo( $meta_old_filename, PATHINFO_EXTENSION );
+					$meta_new_ext = pathinfo( $meta_new_filename, PATHINFO_EXTENSION );
+
 					// WP Retina 2x is detected, let's rename those files as well
 					if ( function_exists( 'wr2x_get_retina' ) ) {
-						$wr2x_old_filepath = $this->core->str_replace( '.' . $old_ext, '@2x.' . $old_ext, $meta_old_filepath );
-						$wr2x_new_filepath = $this->core->str_replace( '.' . $new_ext, '@2x.' . $new_ext, $meta_new_filepath );
+						$wr2x_old_filepath = $this->core->str_replace( '.' . $meta_old_ext, '@2x.' . $meta_old_ext, $meta_old_filepath );
+						$wr2x_new_filepath = $this->core->str_replace( '.' . $meta_new_ext, '@2x.' . $meta_new_ext, $meta_new_filepath );
 						if ( file_exists( $wr2x_old_filepath )
 							&& ( ( !file_exists( $wr2x_new_filepath ) ) || is_writable( $wr2x_new_filepath ) ) ) {
 
@@ -405,9 +409,6 @@ class Meow_MFRH_Engine {
 							do_action( 'mfrh_path_renamed', $post, $wr2x_old_filepath, $wr2x_new_filepath );
 						}
 					}
-					// If webp file existed, that one as well.
-					$this->rename_alternative_image_formats( $meta_old_filepath, $old_ext, $meta_new_filepath,
-						$new_ext, $case_issue, $force_rename, $post );
 
 					// Rename meta file
 					if ( !$this->rename_file( $meta_old_filepath, $meta_new_filepath, $case_issue ) && !$force_rename ) {
@@ -467,6 +468,10 @@ class Meow_MFRH_Engine {
 			wp_update_attachment_metadata( $id, $meta );
 		}
 
+		// Rename the main media file in WebP if it exists.
+		$this->rename_alternative_image_formats( $old_filepath, $old_ext, $new_filepath,
+			$new_ext, $case_issue, $force_rename, $post );
+
 		clean_post_cache( $id ); // TODO: Would be good to know what this WP function actually does exactly (might be useless, but hopefully it does clear the cache)
 
 		// Rename slug/permalink
@@ -491,6 +496,20 @@ class Meow_MFRH_Engine {
 			'new' => $new_filename,
 			'date' => date( 'Y-m-d H:i:s' ),
 		] );
+
+		// If the guid is not par of the sizes ( which happens for PDFs for example where sizes are only thumbnails and not the full file), we should update it as well, otherwise there will be broken links. 
+		$guid_found_in_sizes = false;
+		foreach( $orig_image_urls as $size => $url ) {
+			if( $post['guid'] === $url ) {
+				$guid_found_in_sizes = true;
+				break;
+			}
+		}
+
+		if ( !$guid_found_in_sizes )  {
+			$this->core->call_post_actions( $id, $post, $meta, false, [], $post['guid'] );
+			do_action( 'mfrh_media_renamed', $post, $old_filepath, $new_filepath, false, $method );
+		}
 
 		$this->core->call_post_actions( $id, $post, $meta, $has_thumbnails, $orig_image_urls, $orig_attachment_url );
 		do_action( 'mfrh_media_renamed', $post, $old_filepath, $new_filepath, $undo, $method );
@@ -528,9 +547,9 @@ class Meow_MFRH_Engine {
 		$force_rename,
 		$post = null
 	) {
-		
+		$isPdf = $old_ext === 'pdf' && $format_ext === '.jpg';
 		// Special handling for PDFs
-		if ( $old_ext === 'pdf' && $format_ext === '.jpg' ) {
+		if ( $isPdf ) {
 			$old_ext_for_replace = 'pdf';
 			$new_ext_for_replace = 'pdf';
 		} else {
@@ -549,12 +568,16 @@ class Meow_MFRH_Engine {
 				'new' => $this->core->str_replace( '.' . $new_ext_for_replace, '.' . $new_ext_for_replace . $format_ext, $new_filepath ),
 			],
 		];
+
+		// Variables for PDF metadata update
+		$attachment_id = null;
+		$meta = null;
+		$meta_updated = false;
 	
 		// Additional patterns for PDF thumbnails
-		if ( $old_ext === 'pdf' && $format_ext === '.jpg' ) {
+		if ( $isPdf ) {
 
 			// Retrieve the attachment ID from $post
-			$attachment_id = null;
 			if ( $post ) {
 				if ( is_numeric( $post ) ) {
 					$attachment_id = $post;
@@ -566,7 +589,6 @@ class Meow_MFRH_Engine {
 			}
 		
 			// Get the attachment metadata
-			$meta = null;
 			if ( $attachment_id ) {
 				$meta = wp_get_attachment_metadata( $attachment_id );
 			}
@@ -574,25 +596,55 @@ class Meow_MFRH_Engine {
 
 			$noext_old_filename = pathinfo( $old_filepath, PATHINFO_FILENAME );
 			$noext_new_filename = pathinfo( $new_filepath, PATHINFO_FILENAME );
-	
+
+			// The main PDF thumbnail (e.g., UserGuide-pdf.jpg)
+			$main_pdf_thumbnail = $noext_old_filename . '-pdf' . $format_ext;
+
+			// Find which size (if any) uses the main PDF thumbnail
+			$main_thumbnail_size = null;
+			if ( isset( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
+				foreach ( $meta['sizes'] as $size => $meta_size ) {
+					if ( isset( $meta_size['file'] ) && $meta_size['file'] === $main_pdf_thumbnail ) {
+						$main_thumbnail_size = $size;
+						break;
+					}
+				}
+			}
+
 			// Thumbnails include '-pdf' in the filename
-			$alternatives[] = [
+			$main_thumbnail_alternative = [
 				'old' => $this->core->str_replace( $noext_old_filename . '.pdf', $noext_old_filename . '-pdf' . $format_ext, $old_filepath ),
 				'new' => $this->core->str_replace( $noext_new_filename . '.pdf', $noext_new_filename . '-pdf' . $format_ext, $new_filepath ),
 			];
+			if ( $main_thumbnail_size ) {
+				$main_thumbnail_alternative['size'] = $main_thumbnail_size;
+			}
+			$alternatives[] = $main_thumbnail_alternative;
 	
-			// Retrieve sizes from metadata
+			// Retrieve sizes from metadata for sized thumbnails (e.g., UserGuide-pdf-194x300.jpg)
 			if ( isset( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
 				foreach ( $meta['sizes'] as $size => $meta_size ) {
 					if ( isset( $meta_size['file'] ) ) {
-						// Extract the size suffix from the filename
 						$meta_size_filename = $meta_size['file'];
-						// Remove base filename and extension to get size suffix
-						$size_suffix = str_replace( [ $noext_old_filename . '-pdf-', $format_ext ], '', $meta_size_filename );
+
+						// Skip if this is the main PDF thumbnail (already handled above)
+						if ( $meta_size_filename === $main_pdf_thumbnail ) {
+							continue;
+						}
+
+						// Only process files that have size dimensions (e.g., UserGuide-pdf-100x100.jpg)
+						$prefix = $noext_old_filename . '-pdf-';
+						if ( strpos( $meta_size_filename, $prefix ) !== 0 ) {
+							continue;
+						}
+
+						// Extract the size suffix (e.g., "100x100")
+						$size_suffix = str_replace( [ $prefix, $format_ext ], '', $meta_size_filename );
 	
 						$alternatives[] = [
 							'old' => $this->core->str_replace( $noext_old_filename . '.pdf', $noext_old_filename . '-pdf-' . $size_suffix . $format_ext, $old_filepath ),
 							'new' => $this->core->str_replace( $noext_new_filename . '.pdf', $noext_new_filename . '-pdf-' . $size_suffix . $format_ext, $new_filepath ),
+							'size' => $size, // Track which size this alternative belongs to
 						];
 					}
 				}
@@ -613,7 +665,22 @@ class Meow_MFRH_Engine {
 				}
 				$this->core->log( "✅ PDF Thumbnail {$alternative['old']} ➡️ {$alternative['new']}" );
 				do_action( 'mfrh_path_renamed', $post, $alternative['old'], $alternative['new'] );
+
+				// Update metadata for PDF thumbnails
+				if ( $isPdf && $meta && isset( $alternative['size'] ) ) {
+					$size = $alternative['size'];
+					if ( isset( $meta['sizes'][$size] ) ) {
+						$meta['sizes'][$size]['file'] = basename( $alternative['new'] );
+						$meta_updated = true;
+					}
+				}
 			}
+		}
+
+		// Save updated metadata for PDF thumbnails
+		if ( $meta_updated && $attachment_id && $meta ) {
+			wp_update_attachment_metadata( $attachment_id, $meta );
+			$this->core->log( "✅ Updated attachment metadata for PDF thumbnails (ID: $attachment_id)" );
 		}
 	}
 }

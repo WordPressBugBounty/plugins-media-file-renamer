@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.2.2
+Stable tag: 6.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,12 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.2.3 (2026/03/09) =
+* Add: New filters to let you modify original and new image URLs during DB updates.
+* Fix: Corrected the PDF renaming/moving process and ensured size metadata is fully updated after changes.
+* Fix: Resolved file renaming and moving issues for alternative extensions such as PDF thumbnails.
+* Fix: Improved the Move interface display, corrected root uploads handling in the move hierarchy.
 
 = 6.2.2 (2026/02/25) =
 * Add: New WP-CLI commands (for metadata).

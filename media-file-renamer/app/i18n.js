@@ -167,6 +167,7 @@ i18n.MODAL = {
   SUCCESS_TITLE: __( 'Success', 'media-file-renamer' ),
   MOVE_TITLE: __( 'Move this file', 'media-file-renamer' ),
   MOVE_CONTENT: __( 'Where would you like to move this file (in the /uploads directory)?', 'media-file-renamer' ),
+  MOVE_WARNING: __( 'It seems that the new path is still including the "uploads" root directory. Please make sure to only include the subfolders (e.g. "2023/01").', 'media-file-renamer' ),
   CREATE_FOLDER: __( 'Create Folder', 'media-file-renamer' ),
   EXIT: __( 'Exit', 'media-file-renamer' ),
   RENAME_TITLE: __( 'Rename your media', 'media-file-renamer' ),

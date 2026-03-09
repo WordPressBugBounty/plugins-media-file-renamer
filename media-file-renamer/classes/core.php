@@ -97,6 +97,7 @@ class Meow_MFRH_Core {
 	public $admin = null;
 	public $engine = null;
 	public $pro = false;
+	public $rest = null;
 	public $is_rest = false;
 	public $is_cli = false;
 
@@ -213,7 +214,7 @@ class Meow_MFRH_Core {
 		
 		// Only for REST
 		if ( $this->is_rest ) {
-			new Meow_MFRH_Rest( $this );
+			$this->rest = new Meow_MFRH_Rest( $this, $this->admin );
 		}
 
 		// Side-updates should be ran for CLI and REST
@@ -401,6 +402,11 @@ class Meow_MFRH_Core {
 				}
 			}
 		}
+
+		// Remove the base "uploads" root directory and ensure all paths are relative to it
+		$directories = array_map( function( $dir ) {
+			return ltrim( $dir, '/' );
+		}, $directories );
 
 		// Return the hierarchy as a JSON file
 		return json_encode($directories);
@@ -1472,9 +1478,9 @@ SQL;
 
 		// With clean URLs relative to /uploads
 		$cleaned_orig_image_url = $this->clean_url( $orig_image_url );
-		$cleaned_new_image_url = $this->clean_url( $new_image_url );
+		$cleaned_new_image_url  = $this->clean_url( $new_image_url );
 		if ( !empty( $cleaned_orig_image_url ) && !empty( $cleaned_new_image_url ) ) {
-		do_action( 'mfrh_url_renamed', $post, $cleaned_orig_image_url, $cleaned_new_image_url, $size );
+			do_action( 'mfrh_url_renamed', $post, $cleaned_orig_image_url, $cleaned_new_image_url, $size );
 		}
 
 		// With DB URLs (honestly, not sure about this...)
@@ -1558,8 +1564,7 @@ SQL;
 		$this->log( "✅ File $old_filepath ➡️ $new_filepath" );
 		do_action( 'mfrh_path_renamed', $post, $old_filepath, $new_filepath );
 
-		// Handle the WebP if it exists
-		$this->engine->rename_alternative_image_formats( $old_filepath, $old_ext, $new_filepath, $old_ext );
+		
 
 		// Update the attachment meta
 		$meta = wp_get_attachment_metadata( $id );
@@ -1609,11 +1614,16 @@ SQL;
 				// Double check files exist before trying to rename.
 				if ( file_exists( $meta_old_filepath )
 						&& ( ( !file_exists( $meta_new_filepath ) ) || is_writable( $meta_new_filepath ) ) ) {
+					// Get the actual extension of the thumbnail file (important for PDF thumbnails which are .jpg)
+					$meta_ext = pathinfo( $meta_old_filename, PATHINFO_EXTENSION );
+
 					// WP Retina 2x is detected, let's rename those files as well
 					if ( function_exists( 'wr2x_get_retina' ) ) {
-						$wr2x_old_filepath = $this->str_replace( '.' . $old_ext, '@2x.' . $old_ext, $meta_old_filepath );
-						$wr2x_new_filepath = $this->str_replace( '.' . $old_ext, '@2x.' . $old_ext, $meta_new_filepath );
-						if ( file_exists( $wr2x_old_filepath )
+						$wr2x_old_filepath = $this->str_replace( '.' . $meta_ext, '@2x.' . $meta_ext, $meta_old_filepath );
+						$wr2x_new_filepath = $this->str_replace( '.' . $meta_ext, '@2x.' . $meta_ext, $meta_new_filepath );
+
+						$same_filename = basename( $wr2x_old_filepath ) === basename( $wr2x_new_filepath );
+						if ( !$same_filename && file_exists( $wr2x_old_filepath )
 							&& ( ( !file_exists( $wr2x_new_filepath ) ) || is_writable( $wr2x_new_filepath ) ) ) {
 
 							// Rename retina file
@@ -1625,9 +1635,6 @@ SQL;
 							do_action( 'mfrh_path_renamed', $post, $wr2x_old_filepath, $wr2x_new_filepath );
 						}
 					}
-
-					// Handle the WebP if it exists
-					$this->engine->rename_alternative_image_formats( $meta_old_filepath, $old_ext, $meta_new_filepath, $old_ext );
 
 					// Rename meta file
 					if ( !$this->engine->rename_file( $meta_old_filepath, $meta_new_filepath ) ) {
@@ -1653,7 +1660,27 @@ SQL;
 		if ( $meta ) {
 			wp_update_attachment_metadata( $id, $meta );
 		}
+
+		// Handle the WebP, Avif and PDF thumbnails if they exist
+		// We do this after the main rename, as we will resave new metadata for the different sizes, and we want to make sure the paths are correct for those files.
+		$this->engine->rename_alternative_image_formats( $old_filepath, $old_ext, $new_filepath, $old_ext );
+
 		clean_post_cache( $id ); // TODO: Would be good to know what this WP function actually does (might be useless)
+
+
+		// If the guid is not par of the sizes ( which happens for PDFs for example where sizes are only thumbnails and not the full file), we should update it as well, otherwise there will be broken links. 
+		$guid_found_in_sizes = false;
+		foreach( $orig_image_urls as $size => $url ) {
+			if( $post['guid'] === $url ) {
+				$guid_found_in_sizes = true;
+				break;
+			}
+		}
+
+		if ( !$guid_found_in_sizes )  {
+			$this->call_post_actions( $id, $post, $meta, false, [], $post['guid'] );
+			do_action( 'mfrh_media_renamed', $post, $old_filepath, $new_filepath, false, 'move' );
+		}
 
 		// Post actions
 		$this->call_post_actions( $id, $post, $meta, $has_thumbnails, $orig_image_urls, $orig_attachment_url );
@@ -2420,4 +2447,5 @@ SQL;
 
 		return $random_string;
 	}
+	
 }

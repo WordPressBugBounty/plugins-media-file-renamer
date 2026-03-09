@@ -8,9 +8,9 @@ class Meow_MFRH_Rest
 	private $allow_usage = false;
 	private $allow_setup = false;
 
-	public function __construct( $core ) {
+	public function __construct( $core, $admin) {
 		$this->core = $core;
-		$this->admin = $core->admin;
+		$this->admin = $admin;
 
 		// FOR DEBUG
 		// For experiencing the UI behavior on a slower install.

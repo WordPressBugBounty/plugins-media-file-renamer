@@ -35,7 +35,7 @@ require_once( MFRH_PATH . '/classes/api.php');
 	global $mfrh_core;
 	$mfrh_core = new Meow_MFRH_Core();
   global $mfrh_rest;
-  $mfrh_rest = new Meow_MFRH_REST( $mfrh_core );
+  $mfrh_rest = $mfrh_core->rest;
 //}
 
 ?>
