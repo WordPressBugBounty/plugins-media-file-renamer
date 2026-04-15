@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.2.3
+Stable tag: 6.2.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,11 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.2.4 (2026/04/15) =
+* Add: New CLI command to list all pending renames.
+* Add: New CLI command to set the rename method directly.
+* Update: CLI rename_all command now supports a "dry-run" mode so you can preview changes.
 
 = 6.2.3 (2026/03/09) =
 * Add: New filters to let you modify original and new image URLs during DB updates.
