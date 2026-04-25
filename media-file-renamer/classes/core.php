@@ -63,6 +63,7 @@ define( 'MFRH_OPTIONS', [
 	'clean_uninstall' => false,
 	'dev_tools' => false,
 	'intro_message' => true,
+	'hide_seo_companion' => false,
 	'mode' => 'rename', // rename or move
 	'expert' => false,
 	'dashboard' => true,
@@ -1739,7 +1740,6 @@ SQL;
 		}
 
 		// Adjust metadata type for the prompt.
-		$locale = get_locale();
 		$readableType = $metadataType === 'alt' ? 'alternative text' : $metadataType;
 		$promptType = $metadataType === 'filename' ? 
 			"$readableType. Should be ASCII-friendly, lowercase, respecting filename standards, words separated by hyphens, but do not use the language (or locale) in the filename" :
@@ -1756,6 +1756,11 @@ SQL;
 				}
 			}
 			$prompt .= "The values above might also be modified soon, so it's only for reference.\n\n";
+
+			$keywords = $this->get_seo_keywords( $mediaId );
+			if ( !empty( $keywords ) ) {
+				$prompt .= "* SEO keywords related to the media: $keywords.\n";
+			}
 		}
 
 		// Define max lengths for each metadata type.
@@ -1789,7 +1794,7 @@ SQL;
 		}
 
 		// Give the user a chance to modify the prompt.
-		$prompt = apply_filters( 'mfrh_ai_prompt', $prompt, $metadataType, $entry );
+		$prompt = apply_filters( 'mfrh_ai_prompt', $prompt, $metadataType, $entry, $keywords );
 
 		// Get new metadata, first trying a filter, then defaulting to an AI query.
 		$use_vision = $this->get_option( 'vision_rename_ai', false );
@@ -1844,6 +1849,32 @@ SQL;
 		}
 
 		return $newMetadata;
+	}
+
+	function get_seo_keywords( $attachment_id ) {
+		$parent_id = get_post_field( 'post_parent', $attachment_id );
+    
+		// Check both attachment and parent
+		$ids_to_check = array_filter( [ $attachment_id, $parent_id ] );
+		$found_keywords = '';
+
+		foreach ( $ids_to_check as $id ) {
+			// SEO Engine
+			$kw = get_post_meta( $id, '_mwseo_keywords', true );
+			// Yoast fallback
+			if ( empty( $kw ) ) $kw = get_post_meta( $id, '_yoast_wpseo_focuskw', true );
+			// Rank Math fallback
+			if ( empty( $kw ) ) $kw = get_post_meta( $id, 'rank_math_focus_keyword', true );
+			// SEOPress fallback
+			if ( empty( $kw ) ) $kw = get_post_meta( $id, '_seopress_analysis_target_kw', true );
+
+			if ( ! empty( $kw ) ) {
+				$found_keywords = is_array( $kw ) ? implode( ', ', $kw ) : $kw;
+				break;
+			}
+		}
+
+		return $found_keywords;
 	}
 
 

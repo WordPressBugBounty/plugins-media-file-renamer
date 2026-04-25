@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.2.4
+Stable tag: 6.2.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,13 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.2.5 (2026/04/25) =
+* Add: SEO keyword support from SEO Engine for AI prompt generation.
+* Update: New UI/UX design for better user experience.
+* 🎵 Discuss with others about Media File Renamer on [the Discord](https://discord.gg/bHDGh38).
+* 🌴 Keep us motivated with [a little review here](https://wordpress.org/support/plugin/media-file-renamer/reviews/). Thank you!
+* 🥰 If you want to help us, check our [Patreon](https://www.patreon.com/meowapps). Thank you!
 
 = 6.2.4 (2026/04/15) =
 * Add: New CLI command to list all pending renames.

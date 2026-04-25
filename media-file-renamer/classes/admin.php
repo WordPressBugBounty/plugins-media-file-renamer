@@ -56,6 +56,7 @@ class Meow_MFRH_Admin extends MeowKit_MFRH_Admin {
 			'domain' => MFRH_DOMAIN,
 			'is_pro' => class_exists( 'MeowPro_MFRH_Core' ),
 			'is_registered' => !!$this->is_registered(),
+			'has_seo_engine' => defined( 'MWSEO_VERSION' ) || class_exists( 'Meow_MWSEO_Core' ),
 			'rest_nonce' => wp_create_nonce( 'wp_rest' ),
 			'options' => $this->core->sanitize_options()[0], // Ensure we get the sanitized options when loading the script
 		] );

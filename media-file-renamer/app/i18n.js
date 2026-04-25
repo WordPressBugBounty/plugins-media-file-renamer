@@ -425,6 +425,18 @@ i18n.SETTINGS = {
   PENDING_PROGRESS: __( 'Analyzing... {current} / {total}', 'media-file-renamer' ),
   PENDING_REANALYZE_BUTTON: __( 'Re-Analyze Media Library', 'media-file-renamer' ),
   PENDING_UP_TO_DATE: __( 'Library is up to date. Last analyzed for the "{method}" method.', 'media-file-renamer' ),
+
+  SEO_COMPANION_TITLE: __( 'Take SEO further', 'media-file-renamer' ),
+  SEO_COMPANION_SUBTITLE: __( 'Pair Media File Renamer with SEO Engine', 'media-file-renamer' ),
+  SEO_COMPANION_DESCRIPTION: __( 'Clean filenames are step one. <strong>SEO Engine</strong> is our companion plugin that handles the rest of your on-page SEO: AI content scoring, meta tags, sitemaps, schema, and analytics, without the bloat of older SEO plugins.', 'media-file-renamer' ),
+  SEO_COMPANION_FEATURE_CONTENT: __( 'AI-powered content scoring & Magic Fix', 'media-file-renamer' ),
+  SEO_COMPANION_FEATURE_TECHNICAL: __( 'Sitemaps, canonicals, structured data', 'media-file-renamer' ),
+  SEO_COMPANION_FEATURE_ANALYTICS: __( 'Built-in analytics & Core Web Vitals', 'media-file-renamer' ),
+  SEO_COMPANION_FEATURE_MCP: __( 'Full MCP support, so your SEO data is queryable from ChatGPT or Claude', 'media-file-renamer' ),
+  SEO_COMPANION_LEARN_MORE: __( 'Learn more', 'media-file-renamer' ),
+  SEO_COMPANION_INSTALL: __( 'Install free version', 'media-file-renamer' ),
+  SEO_COMPANION_DETECTED: __( '✓ <strong>SEO Engine detected.</strong> Your renamed filenames pair with SEO Engine\'s keyword and content analysis automatically.', 'media-file-renamer' ),
+  SEO_COMPANION_DISMISS: __( 'Hide this suggestion', 'media-file-renamer' ),
 };
 
 i18n.ON_UPLOAD_OPTIONS = {
