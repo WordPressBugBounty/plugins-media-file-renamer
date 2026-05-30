@@ -71,6 +71,7 @@ i18n.DASHBOARD = {
   },
   POST: __( 'Post', 'media-file-renamer' ),
   EDIT: __( 'Edit', 'media-file-renamer' ),
+  ALL_POST_TYPES: __( 'All Post Types', 'media-file-renamer' ),
   PENDING_MESSAGE: __( 'There are <b>{0} medias</b> that are not renamed with your primary AUTO method (<i>{1}</i>) yet.', 'media-file-renamer' ),
 };
 

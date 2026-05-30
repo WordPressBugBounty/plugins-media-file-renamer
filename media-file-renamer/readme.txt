@@ -3,9 +3,9 @@ Contributors: TigrouMeow
 Tags: rename, file, media, move, seo
 Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 6.2.5
+Stable tag: 6.2.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,10 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.2.6 (2026/05/30) =
+* Update: Merged the Renamer and Metadata fields into a single component, making editing available outside the Dashboard.
+* Add: Post type filter for media attached to specific parent post types.
 
 = 6.2.5 (2026/04/25) =
 * Add: SEO keyword support from SEO Engine for AI prompt generation.

@@ -59,10 +59,26 @@ class Meow_MFRH_Admin extends MeowKit_MFRH_Admin {
 			'has_seo_engine' => defined( 'MWSEO_VERSION' ) || class_exists( 'Meow_MWSEO_Core' ),
 			'rest_nonce' => wp_create_nonce( 'wp_rest' ),
 			'options' => $this->core->sanitize_options()[0], // Ensure we get the sanitized options when loading the script
+			'post_types' => $this->get_attachable_post_types(),
 		] );
 
 		// Load the i18n file
 		wp_set_script_translations( MFRH_PREFIX, MFRH_DOMAIN, MFRH_PATH . 'app' );
+	}
+
+	function get_attachable_post_types() {
+		$post_types = get_post_types( [ 'public' => true ], 'objects' );
+		$result = [];
+		foreach ( $post_types as $post_type ) {
+			if ( $post_type->name === 'attachment' ) {
+				continue;
+			}
+			$result[] = [
+				'name' => $post_type->name,
+				'label' => $post_type->label,
+			];
+		}
+		return $result;
 	}
 
 	function is_pro_user() {

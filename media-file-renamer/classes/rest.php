@@ -72,6 +72,7 @@ class Meow_MFRH_Rest
 				'callback' => array( $this, 'rest_get_stats' ),
 				'args' => array(
 					'search' => array( 'required' => false ),
+					'postType' => array( 'required' => false ),
 				)
 			) );
 			register_rest_route( $this->namespace, '/media', array(
@@ -85,6 +86,7 @@ class Meow_MFRH_Rest
 					'orderBy' => array( 'required' => false, 'default' => 'id' ),
 					'order' => array( 'required' => false, 'default' => 'desc' ),
 					'search' => array( 'required' => false ),
+					'postType' => array( 'required' => false ),
 					'offset' => array( 'required' => false ),
 					'order' => array( 'required' => false ),
 				)
@@ -609,7 +611,7 @@ class Meow_MFRH_Rest
 	 * Get all stats counts in a single query for better performance.
 	 * Returns: total, pending, locked, renamed counts.
 	 */
-	function count_all_stats( $search ) {
+	function count_all_stats( $search, $postType = null ) {
 		global $wpdb;
 
 		$joinSql = '';
@@ -631,6 +633,12 @@ class Meow_MFRH_Rest
 		// Featured only filter
 		if ( $this->core->featured_only ) {
 			$joinSql .= " INNER JOIN $wpdb->postmeta pm_featured ON pm_featured.meta_value = p.ID AND pm_featured.meta_key = '_thumbnail_id'";
+		}
+
+		// Post type filter - join with parent post to filter by its type
+		if ( !empty( $postType ) ) {
+			$joinSql .= " INNER JOIN $wpdb->posts parent_post ON parent_post.ID = p.post_parent";
+			$whereClauses[] = $wpdb->prepare( "parent_post.post_type = %s", $postType );
 		}
 
 		// LEFT JOINs for counting specific meta keys
@@ -759,35 +767,34 @@ class Meow_MFRH_Rest
 
 
 
-	function count_by_filter( $filterBy, $search, $hide_locked = true ) {
+	function count_by_filter( $filterBy, $search, $hide_locked = true, $postType = null ) {
+		// Use the consolidated stats query for better performance
+		$stats = $this->count_all_stats( $search, $postType );
+		
 		if ( $filterBy === 'pending' ) {
-			return $this->count_pending( $search, $hide_locked );
+			return $hide_locked ? $stats['pending_unlocked'] : $stats['pending'];
 		} else if ( $filterBy === 'renamed' ) {
-			return $this->count_renamed( $search );
+			return $stats['renamed'];
 		} else if ( $filterBy === 'locked' ) {
-			return $this->count_locked( $search );
+			return $stats['locked'];
 		} else if ( $filterBy === 'unlocked' ) {
-			$all = $this->count_all( $search );
-			$locked = $this->count_locked( $search );
-			return $all - $locked;
+			return $stats['all'] - $stats['locked'];
 		} else if ( $filterBy === 'unrenamed' ) {
-			$all = $this->count_all( $search );
-			$locked = $this->count_locked( $search );
-			$renamed = $this->count_renamed( $search );
-			$unlocked = $all - $locked;
+			$unrenamed = $stats['all'] - $stats['renamed'];
 			// If hide_locked is true, only count unlocked unrenamed items
-			return $hide_locked ? ($unlocked - $renamed) : ($all - $renamed);
+			return $hide_locked ? ($unrenamed - $stats['locked']) : $unrenamed;
 		} else { // 'all'
-			return $this->count_all( $search );
+			return $stats['all'];
 		}
 	}
 
 	function rest_get_stats($request) {
 		$search = trim( $request->get_param( 'search' ) );
+		$postType = trim( $request->get_param( 'postType' ) );
 		$hide_locked = $this->core->get_option( 'hide_locked', true );
 
 		// Single query for all stats instead of 4 separate queries
-		$stats = $this->count_all_stats( $search );
+		$stats = $this->count_all_stats( $search, $postType );
 
 		$all = $stats['all'];
 		$pending = $hide_locked ? $stats['pending_unlocked'] : $stats['pending'];
@@ -889,6 +896,7 @@ class Meow_MFRH_Rest
 	 * @param string $orderBy
 	 * @param string $order
 	 * @param string|null $search
+	 * @param string|null $postType Filter by attached post type
 	 * @return array
 	 */
 	function get_media_status(
@@ -898,7 +906,8 @@ class Meow_MFRH_Rest
         $orderBy = 'post_title',
         $order = 'asc',
         $search = null,
-        $hide_locked = true
+        $hide_locked = true,
+        $postType = null
     ) {
         global $wpdb;
 
@@ -954,6 +963,14 @@ class Meow_MFRH_Rest
             }
         }
 
+        // Post type filter - join with parent post to filter by its type
+        $postTypeJoinSql = '';
+        $postTypeWhereSql = '';
+        if ( !empty( $postType ) ) {
+            $postTypeJoinSql = "INNER JOIN $wpdb->posts parent_post ON parent_post.ID = p.post_parent";
+            $postTypeWhereSql = $wpdb->prepare( "AND parent_post.post_type = %s", $postType );
+        }
+
         $request = $wpdb->prepare( "
             SELECT p.ID, p.post_title, p.post_parent, p.post_content AS image_description, p.post_excerpt AS image_caption,
                 MAX(CASE WHEN pm.meta_key = '_wp_attached_file' THEN pm.meta_value END) AS current_filename,
@@ -974,10 +991,12 @@ class Meow_MFRH_Rest
                     MAX(CASE WHEN pm.meta_key = '_manual_file_renaming' THEN pm.meta_value END) AS locked
                 FROM $wpdb->posts p
                 $innerJoinCondition
+                $postTypeJoinSql
                 JOIN $wpdb->postmeta pm ON pm.post_id = p.ID
                 WHERE p.post_type = 'attachment'
                     AND p.post_status = 'inherit'
                     $whereSql
+                    $postTypeWhereSql
                 GROUP BY p.ID
                 $havingSql
             ) AS filtered_posts
@@ -1030,11 +1049,12 @@ class Meow_MFRH_Rest
 		$orderBy = trim( $request->get_param('orderBy') );
 		$order = trim( $request->get_param('order') );
 		$search = trim( $request->get_param('search') );
+		$postType = trim( $request->get_param('postType') );
 
 		$hide_locked = $this->core->get_option( 'hide_locked', true );
 
-		$entries = $this->get_media_status( $skip, $limit, $filterBy, $orderBy, $order, $search, $hide_locked );
-		$total = $this->count_by_filter( $filterBy, $search, $hide_locked );
+		$entries = $this->get_media_status( $skip, $limit, $filterBy, $orderBy, $order, $search, $hide_locked, $postType );
+		$total = $this->count_by_filter( $filterBy, $search, $hide_locked, $postType );
 
 		return new WP_REST_Response( [ 'success' => true, 'data' => $entries, 'total' => $total ], 200 );
 	}
