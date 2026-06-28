@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 6.2.6
+Stable tag: 6.2.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,15 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.2.7 (2026/06/28) =
+* Add: "Run Later" option for delayed processing of upload renaming.
+* Add: "Ignore This Time" option on the media upload screen to skip the "On Upload" method for the current batch.
+* Add: Vision error messages now displayed in the UI for easier debugging.
+* Fix: Undefined variable warning.
+* 🎵 Discuss with others about Media File Renamer on [the Discord](https://discord.gg/bHDGh38).
+* 🌴 Keep us motivated with [a little review here](https://wordpress.org/support/plugin/media-file-renamer/reviews/). Thank you!
+* 🥰 If you want to help us, check our [Patreon](https://www.patreon.com/meowapps). Thank you!
 
 = 6.2.6 (2026/05/30) =
 * Update: Merged the Renamer and Metadata fields into a single component, making editing available outside the Dashboard.

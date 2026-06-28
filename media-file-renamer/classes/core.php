@@ -10,6 +10,7 @@ define( 'MFRH_OPTIONS', [
 	'on_upload_method' => 'none',
 	'on_upload_method_secondary' => 'none',
 	'on_upload_method_tertiary' => 'none',
+	'on_upload_run_later' => false,
 
 	'hide_none_warning' => false,
 
@@ -107,6 +108,7 @@ class Meow_MFRH_Core {
 	public $method_tertiary = 'none';
 
 	public $last_used_method = null;
+	public $last_vision_error = null;
 
 	private $nonce = null;
 	
@@ -197,6 +199,9 @@ class Meow_MFRH_Core {
 
 		add_action( 'add_attachment', [ $this, 'on_upload_hook' ] );
 		add_filter( 'wp_handle_upload_prefilter', [ $this, 'on_upload_hook_prefilter' ] );
+
+		// Cron hook for delayed on-upload processing
+		add_action( 'mfrh_delayed_on_upload', [ $this, 'on_upload_cron_handler' ], 10, 1 );
 
 		add_action( 'attachment_updated', array( $this, 'attachment_fields_to_save' ), 10, 3 );
 		add_action( 'updated_post_meta', array( $this, 'on_alt_text_updated' ), 10, 4 );
@@ -466,6 +471,18 @@ SQL;
 			return $file;
 		}
 
+		// Check if the user has opted to skip on upload for this session
+		if ( isset( $_COOKIE['mfrh_skip_on_upload'] ) && $_COOKIE['mfrh_skip_on_upload'] === '1' ) {
+			$this->log( "⏭️ Skipping On Upload (user requested skip for this session)." );
+			return $file;
+		}
+
+		// Skip prefilter if "Run Later" is enabled
+		if ( $this->get_option( 'on_upload_run_later', false ) ) {
+			$this->log( "⏳ Skipping prefilter (Run Later mode enabled)." );
+			return $file;
+		}
+
 		$this->log( "⏰ Event: New Upload on Prefilter (" . $file['name'] . ")" );
 
 		// If it's not an image, we don't do anything
@@ -528,13 +545,37 @@ SQL;
 			return;
 		}
 
+		// Check if the user has opted to skip on upload for this session
+		if ( isset( $_COOKIE['mfrh_skip_on_upload'] ) && $_COOKIE['mfrh_skip_on_upload'] === '1' ) {
+			$this->log( "⏭️ Skipping On Upload (user requested skip for this session)." );
+			return;
+		}
+
+		// Check if "Run Later" is enabled - schedule cron instead of immediate processing
+		if ( $this->get_option( 'on_upload_run_later', false ) ) {
+			$this->log( "⏳ Scheduling delayed on-upload processing for attachment ID: $id" );
+			wp_schedule_single_event( time() + ( 5 * 60 ), 'mfrh_delayed_on_upload', [ $id ] );
+			return;
+		}
+
+		$this->process_on_upload( $id );
+	}
+
+
+	function on_upload_cron_handler( $id ) {
+		$this->log( "⏰ Cron: Processing delayed on-upload for attachment ID: $id" );
+		$this->process_on_upload( $id );
+	}
+
+
+	function process_on_upload( $id ) {
 		$post = get_post( $id );
 		if(!$post) {
 			$this->log( "⚠️ Post not found." );
 			return;
 		}
 
-		$this->log( "⏰ New Upload (" . $post->post_title . ")" );
+		$this->log( "⏰ Processing Upload (" . $post->post_title . ")" );
 		$done = false;
 		
 		$upload_methods = [
@@ -543,9 +584,26 @@ SQL;
 			$this->get_option( 'on_upload_method_tertiary', 'none' ),
 		];
 
+		// Check if we're in "Run Later" mode: if so, we may need to handle filename renaming 8as it should be done in prefilter normally)
+		$run_later = $this->get_option( 'on_upload_run_later', false );
+		$filename_renamed = false;
+
 		foreach ( $upload_methods as $method ) {
 			if ( $done ) { break; }
 			$this->set_sync_on_upload( $method );
+
+			// Handle filename renaming if "Run Later" is enabled, filename sync is enabled for this method,
+			// and we haven't already renamed the file
+			if ( $run_later && !$filename_renamed && $this->get_prefilter_option( $method ) ) {
+				$new_filename = $this->generate_on_upload_filename( $post, $method );
+				if ( $new_filename ) {
+					$this->log( "🗒️ Renaming file to: $new_filename" );
+					$this->engine->rename( $post->ID, $new_filename, false, 'on_upload' );
+					// Refresh post data after rename
+					$post = get_post( $id );
+					$filename_renamed = true;
+				}
+			}
 
 			switch ( $method ) {
 				case 'upload_exif': // "auto" => EXIF Title
@@ -576,6 +634,74 @@ SQL;
 		}
 
 		$this->log( "👌 Done." );
+	}
+
+	/**
+	 * Unified function to compute a new filename based on the upload method.
+	 * Used by both prefilter (during upload) and delayed processing (Run Later).
+	 */
+	function compute_upload_filename( $method, $file_path, $original_filename, $post_id = 0, $title_source = null ) {
+		switch ( $method ) {
+			case 'upload_exif':
+				$title = $this->get_exif_data( $file_path, 'title' );
+				if ( !empty( $title ) ) {
+					$filename = $this->engine->new_filename( $title, $original_filename );
+					if ( $filename ) {
+						$this->log( "👌 Title EXIF found." );
+						return apply_filters( 'mfrh_new_filename', $filename, $original_filename, $post_id );
+					}
+				} else {
+					$this->log( "😭 Title EXIF not found." );
+				}
+				break;
+
+			case 'upload_clean':
+				$source = $title_source ?? $original_filename;
+				$image_title = preg_replace( '%\s*[-_\s]+\s*%', ' ', $source );
+				$image_title = ucwords( strtolower( $image_title ) );
+				$filename = $this->engine->new_filename( $image_title, $original_filename );
+				if ( $filename ) {
+					$this->log( "👌 Clean Upload found." );
+					return apply_filters( 'mfrh_new_filename', $filename, $original_filename, $post_id );
+				}
+				break;
+
+			case 'upload_vision':
+				if ( !has_filter( 'mfrh_vision_suggestion' ) ) {
+					if ( $this->pro ) {
+						add_filter( 'mfrh_vision_suggestion', array( $this->pro, 'vision_suggestion' ), 10, 4 );
+					} else {
+						$this->log( '⚠️ Vision AI is enabled but no filter is set.' );
+						return null;
+					}
+				}
+
+				// For prefilter (post_id = 0), pass the file path; for post-upload, pass post_id
+				$ai_filename = $this->ai_suggestion( $post_id ?: null, 'filename', $post_id ? null : $file_path );
+				if ( $ai_filename ) {
+					$filename = $this->engine->new_filename( $ai_filename, $original_filename );
+					if ( $filename ) {
+						$this->log( "👌 Vision AI found." );
+						return apply_filters( 'mfrh_new_filename', $filename, $original_filename, $post_id );
+					}
+				} else {
+					$this->log( '⚠️ Vision AI: No filename suggestion returned.' );
+				}
+				break;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Generate a new filename for the "Run Later" on-upload processing.
+	 */
+	function generate_on_upload_filename( $post, $method ) {
+		$file = get_attached_file( $post->ID );
+		$path_parts = mfrh_pathinfo( $file );
+		$old_filename = $path_parts['basename'];
+
+		return $this->compute_upload_filename( $method, $file, $old_filename, $post->ID, $post->post_title );
 	}
 
 	function rename_media_on_post_upload( $post ) {
@@ -640,23 +766,13 @@ SQL;
 
 	function exif_data_upload_prefilter ( $file ) {
 		try {
-			$title = $this->get_exif_data( $file['tmp_name'], 'title' );
-			if ( !empty( $title ) ) {
-				$filename = $this->engine->new_filename( $title, $file['name'] );
-				if ( !is_null( $filename ) ) {
-					$filename = apply_filters( 'mfrh_new_filename', $filename, $file['name'], 0 );
-					$file['name'] = $filename;
-					$this->log( "👌 Title EXIF found." );
-					$this->log( "New file should be: " . $file['name'] );
-					return [ true, $file ];
-				}
-				return [ false, $file ];
+			$filename = $this->compute_upload_filename( 'upload_exif', $file['tmp_name'], $file['name'] );
+			if ( $filename ) {
+				$file['name'] = $filename;
+				$this->log( "New file should be: " . $file['name'] );
+				return [ true, $file ];
 			}
-			else
-			{
-				$this->log( "😭 Title EXIF not found." );
-				return [ false, $file ];
-			}
+			return [ false, $file ];
 		}
 		catch ( Exception $e ) {
 			$this->log( '⚠️ EXIF Data failed: ' . $e->getMessage() );
@@ -698,26 +814,17 @@ SQL;
 
 	function clean_upload_prefilter( $file ) {
 		try {
-			
-			$image_title = preg_replace( '%\s*[-_\s]+\s*%', ' ', $file['name'] );
-			$image_title = ucwords( strtolower( $image_title ) );
-
-			$filename = $this->engine->new_filename( $image_title, $file['name'] );
-			if ( !is_null( $filename ) ) {
-				$filename = apply_filters( 'mfrh_new_filename', $filename, $file['name'], 0 );
+			$filename = $this->compute_upload_filename( 'upload_clean', $file['tmp_name'], $file['name'] );
+			if ( $filename ) {
 				$file['name'] = $filename;
-				$this->log( "👌 Clean Upload found." );
 				$this->log( "New file should be: " . $file['name'] );
 				return [ true, $file ];
 			}
-
 			return [ false, $file ];
-
 		} catch (Exception $e) {
 			$this->log( '⚠️ Clean Upload failed: ' . $e->getMessage() );
 			return [ false, $file ];
 		}
-		
 	}
 
 	function clean_upload( $post ) {
@@ -755,41 +862,21 @@ SQL;
 
 	function vision_rename_ai_on_upload_prefilter( $file ) {
 		try {
-
-			if ( !has_filter( 'mfrh_vision_suggestion' ) ) {
-				if ( $this->pro ) {
-					add_filter( 'mfrh_vision_suggestion', array( $this->pro, 'vision_suggestion' ), 10, 4 );
-				} else {
-					$this->log( '⚠️ Vision AI is enabled but no filter is set.' );
-					return [ false, $file ];
-				}
-			}
-
+			// Check file is readable before calling AI
 			$binary = file_get_contents( $file['tmp_name'] );
 			if ( !$binary ) {
 				$this->log( '⚠️ Vision AI: Could not read the file.' );
 				return [ false, $file ];
 			}
 
-			$filename = $this->ai_suggestion( null, 'filename', $file['tmp_name'] );
-			if( !$filename ) {
-				$this->log( '⚠️ Vision AI: No filename suggestion returned.' );
-				return [ false, $file ];
-			}
-
-			$filename = $this->engine->new_filename( $filename, $file['name'] );
-
+			$filename = $this->compute_upload_filename( 'upload_vision', $file['tmp_name'], $file['name'] );
 			if ( $filename ) {
-				$filename = apply_filters( 'mfrh_new_filename', $filename, $file['name'], 0 );
 				$file['name'] = $filename;
-				$this->log( "👌 Vision AI found." );
 				$this->log( "New file should be: " . $file['name'] );
 				return [ true, $file ];
 			}
-
 			return [ false, $file ];
-
-		}catch (Exception $e) {
+		} catch (Exception $e) {
 			$this->log( '⚠️ Vision AI failed: ' . $e->getMessage() );
 			return [ false, $file ];
 		}
@@ -1722,7 +1809,9 @@ SQL;
 	 * @return string New metadata suggestion.
 	 */
 	function ai_suggestion( $mediaId, $metadataType, $binary_path = null ) {
+		$this->last_vision_error = null;
 		$is_binary = !is_null( $binary_path );
+		$keywords = "";
 
 		// Prepare metadata from the entry.
 		$metadata = [];

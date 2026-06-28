@@ -494,6 +494,9 @@ class Meow_MFRH_Rest
 			$newMetadata = $this->core->ai_suggestion( $mediaId, $metadataType );
 
 			if ( empty( $newMetadata ) ) {
+				if ( !empty( $this->core->last_vision_error ) ) {
+					return new WP_REST_Response( [ 'success' => false, 'message' => $this->core->last_vision_error ], 200 );
+				}
 				return new WP_REST_Response( [ 'success' => true, 'message' => 'No suggestion.' ], 200 );
 			}
 

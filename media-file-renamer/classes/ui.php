@@ -49,11 +49,12 @@ class Meow_MFRH_UI
 			$formattedString = '(⚠️ ' . __('No on upload fields are enabled', 'media-file-renamer') . ')';
 		} 
 		
+		$run_later = $this->core->get_option('on_upload_run_later', false) ? 'true' : 'false';
 		$screen = get_current_screen();
 		switch ($screen->id) {
 			case 'media':
 ?>
-				<div id="mfrh-on-upload-method" data-on-upload-method="<?php echo $on_upload; ?>" data-fields="<?php echo $formattedString; ?>"></div>
+				<div id="mfrh-on-upload-method" data-on-upload-method="<?php echo $on_upload; ?>" data-fields="<?php echo $formattedString; ?>" data-run-later="<?php echo $run_later; ?>"></div>
 <?php
 				break;
 			default:

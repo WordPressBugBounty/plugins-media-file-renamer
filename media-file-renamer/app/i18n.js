@@ -449,6 +449,9 @@ i18n.ON_UPLOAD_OPTIONS = {
   CLEAN_UPLOAD: __( 'Clean Upload', 'media-file-renamer' ),
   EXIF_UPLOAD: __( 'EXIF Upload', 'media-file-renamer' ),
   VISION_UPLOAD: __( 'Vision Upload', 'media-file-renamer' ),
+
+  RUN_LATER: __( 'Run Later (5 min)', 'media-file-renamer' ),
+  RUN_LATER_DESCRIPTION: __( 'Process uploads via a scheduled task 5 minutes later instead of immediately.', 'media-file-renamer' ),
 };
 
 i18n.ON_UPLOAD_DESCRIPTIONS = {
