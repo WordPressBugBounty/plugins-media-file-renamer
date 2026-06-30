@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 6.2.7
+Stable tag: 6.2.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,11 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.2.8 (2026/06/30) =
+* Update: Moved the AI Suggest buttons inside the fields in the Edit Media modal.
+* Update: Changed the Auto and Edit buttons back to normal case and made the Auto label translatable.
+* Fix: Hotfix — Fixed a path traversal issue in the Move and Create Folder operations, keeping all file actions inside the uploads directory.
 
 = 6.2.7 (2026/06/28) =
 * Add: "Run Later" option for delayed processing of upload renaming.

@@ -122,7 +122,7 @@ i18n.RENAMER_FIELDS = {
   FILENAME_ALREADY_EXISTS_NO_SKIP: __( "The filename proposed by {0} already exists. Please select another method, rename manually or enable Advanced > Unique Filenames to always get a unique filename.", 'media-file-renamer' ),
   ROLLBACK_TO_ORIGINAL: __( 'Back to original filename.', 'media-file-renamer' ),
   RENAME_AUTOMATICALLY: __( 'Rename automatically', 'media-file-renamer' ),
-  AUTO_RENAME: __( 'AUTO', 'media-file-renamer' ),
+  AUTO_RENAME: __( 'Auto', 'media-file-renamer' ),
   AUTO_RENAME_ALREADY_MATCHING: __( 'The filename is already matching the auto method result, no need to auto rename.', 'media-file-renamer' ),
   RENAME_MANUALLY: __( 'Rename manually', 'media-file-renamer' ),
   CANCEL_MANUAL_RENAME: __( 'Cancel manual rename', 'media-file-renamer' ),

@@ -1577,9 +1577,59 @@ SQL;
 		//  	str_replace( $upload_dir, "", $new_image_url ) );
 	}
 
+	// Security: validates that a user-supplied relative path stays inside the uploads
+	// directory. Prevents path traversal in move() and create_folder() (e.g. an admin
+	// passing '../../wp-content/themes'). realpath() can't run on a not-yet-created
+	// target, so we reject '..' segments and verify the deepest existing ancestor
+	// (resolved through symlinks) is still under the uploads base. Returns the cleaned
+	// relative path. Throws on any attempt to escape the uploads directory.
+	private function sanitize_uploads_relative_path( $relative_path ) {
+		$relative_path = str_replace( '\\', '/', (string) $relative_path );
+		if ( strpos( $relative_path, "\0" ) !== false ) {
+			throw new Exception( __( 'Invalid path.', 'media-file-renamer' ) );
+		}
+
+		$segments = array();
+		foreach ( explode( '/', trim( $relative_path, '/' ) ) as $segment ) {
+			if ( $segment === '' || $segment === '.' ) {
+				continue;
+			}
+			if ( $segment === '..' ) {
+				throw new Exception( __( 'Invalid path.', 'media-file-renamer' ) );
+			}
+			$segments[] = $segment;
+		}
+		$clean = implode( '/', $segments );
+
+		$upload_dir = wp_upload_dir();
+		$basedir = str_replace( '\\', '/', $upload_dir['basedir'] );
+		$real_base = realpath( $basedir );
+		$real_base = $real_base ? str_replace( '\\', '/', $real_base ) : $basedir;
+
+		// Walk up to the deepest existing ancestor and confirm it resolves inside the
+		// uploads base (this catches symlinks within uploads that point elsewhere).
+		$ancestor = $basedir . ( $clean !== '' ? '/' . $clean : '' );
+		while ( $ancestor && ! file_exists( $ancestor ) ) {
+			$parent = dirname( $ancestor );
+			if ( $parent === $ancestor ) {
+				break;
+			}
+			$ancestor = $parent;
+		}
+		$real_ancestor = realpath( $ancestor );
+		if ( $real_ancestor !== false ) {
+			$real_ancestor = str_replace( '\\', '/', $real_ancestor );
+			if ( strpos( trailingslashit( $real_ancestor ), trailingslashit( $real_base ) ) !== 0 ) {
+				throw new Exception( __( 'Invalid path.', 'media-file-renamer' ) );
+			}
+		}
+
+		return $clean;
+	}
+
 	function create_folder( $directory_path ) {
 		$upload_dir = wp_upload_dir();
-		$new_directory_path = trailingslashit( $upload_dir['basedir'] ) . trim( $directory_path, '/' );
+		$new_directory_path = trailingslashit( $upload_dir['basedir'] ) . $this->sanitize_uploads_relative_path( $directory_path );
 
 		if ( file_exists( $new_directory_path ) ) {
 			$this->log( "🚫 The directory already existed: $new_directory_path" );
@@ -1630,7 +1680,7 @@ SQL;
 		}
 
 		$old_directory = trim( str_replace( $upload_dir['basedir'], '', $path_parts['dirname'] ), '/' ); // '2011/01'
-		$new_directory = trim( $newPath, '/' );
+		$new_directory = $this->sanitize_uploads_relative_path( $newPath ); // Throws on path traversal.
 		$filename = $path_parts['basename']; // 'whatever.jpeg'
 		$new_filepath = trailingslashit( trailingslashit( $upload_dir['basedir'] ) . $new_directory ) . $filename;
 

@@ -535,12 +535,16 @@ class Meow_MFRH_Rest
 	}
 
 	function rest_move( $request ) {
-		$params = $request->get_json_params();
-		$mediaId = (int)$params['mediaId'];
-		$newPath = isset( $params['newPath'] ) ? (string)$params['newPath'] : null;
-		$res = $this->core->move( $mediaId, $newPath );
-		$entry = $this->core->get_media_status_one( $mediaId );
-		return new WP_REST_Response( [ 'success' => !!$res, 'data' => $entry ], 200 );
+		try {
+			$params = $request->get_json_params();
+			$mediaId = (int)$params['mediaId'];
+			$newPath = isset( $params['newPath'] ) ? (string)$params['newPath'] : null;
+			$res = $this->core->move( $mediaId, $newPath );
+			$entry = $this->core->get_media_status_one( $mediaId );
+			return new WP_REST_Response( [ 'success' => !!$res, 'data' => $entry ], 200 );
+		} catch ( Exception $e ) {
+			return new WP_REST_Response( [ 'success' => false, 'message' => $e->getMessage() ], 200 );
+		}
 	}
 
 	function rest_undo( $request ) {
