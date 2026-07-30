@@ -93,12 +93,9 @@ class Meow_MFRH_Engine {
 		else {
 			// Filename is generated from $text, without an extension.
 
-			// Those are basically errors, when titles are generated from filename
-			$text = str_replace( ".jpg", "", $text );
-			$text = str_replace( ".jpeg", "", $text );
-			$text = str_replace( ".png", "", $text );
-			$text = str_replace( ".webp", "", $text );
-			$text = str_replace( ".svg", "", $text );
+			// Strip a trailing known extension from the text
+			$extensions = apply_filters( 'mfrh_allowed_extensions', $this->allowed_extensions );
+			$text = preg_replace( '/\.(' . implode( '|', array_map( 'preg_quote', $extensions ) ) . ')$/i', '', $text );
 
 			// Related to English
 			$text = str_replace( "'s", "", $text );
