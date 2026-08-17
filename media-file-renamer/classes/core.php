@@ -35,6 +35,7 @@ define( 'MFRH_OPTIONS', [
 	'vision_rename_ai_cache' => 60 * 60 * 24,
 	'exif_context' => false,
 	'manual_prompt' => false,
+	'attached_post_context' => false,
 
 	'manual_sync_fields' => false,
 	'manual_sanitize' => true,
@@ -1930,6 +1931,16 @@ SQL;
 		}
 		else if ( $metadataType === 'title' ) {
 			$prompt .= " " . ( $use_manual_prompts ? $this->get_option( 'manual_prompt_title', $this->default_prompts['manual_prompt_title'] ) : $this->default_prompts['manual_prompt_title'] );
+		}
+
+		// Use attached post content for context if available and not empty.
+		$use_attached_post_content = $this->get_option( 'attached_post_context', false );
+		if ( $use_attached_post_content && !$is_binary && !empty( $entry->post_parent ) ) {
+			$parent_post = get_post( $entry->post_parent );
+			if ( $parent_post && !empty( $parent_post->post_content ) ) {
+				$shortened_content = wp_trim_words( $parent_post->post_content, 150, '...' );
+				$prompt .= "\n\nAdditional context, the media is attached to a post with the following content: \n" . $shortened_content;
+			}
 		}
 
 		// Give the user a chance to modify the prompt.

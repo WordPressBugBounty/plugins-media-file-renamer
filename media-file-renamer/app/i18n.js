@@ -228,6 +228,8 @@ i18n.SETTINGS = {
   ADVANCED: __( 'Advanced', 'media-file-renamer' ),
   RENAMING: __( 'Renaming', 'media-file-renamer' ),
   MANUAL_PROMPT: __( 'Manual Prompts', 'media-file-renamer' ),
+  ATTACHED_POST_CONTEXT: __( 'Attached Post Context', 'media-file-renamer' ),
+  ATTACHED_POST_CONTEXT_DESCRIPTION: __( 'When using AI Vision, if the media is attached to a post, the plugin will use the post content to enhance the AI suggestions.', 'media-file-renamer' ),
   MANUAL_PROMPT_FIELD_DESCRIPTION: __( 'Manually change the prompts for the AI suggestions.', 'media-file-renamer' ),
   MANUAL_PROMPT_FILENAME: __( 'Prompt for Filename', 'media-file-renamer' ),
   MANUAL_PROMPT_TITLE: __( 'Prompt for Title', 'media-file-renamer' ),
