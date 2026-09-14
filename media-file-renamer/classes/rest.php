@@ -447,10 +447,10 @@ class Meow_MFRH_Rest
 	function rest_update_media( $request ) {
 		$params = is_array( $request ) ? $request : $request->get_json_params();
 		$id = isset( $params['id'] ) ? $params['id'] : '';
-		$postTitle = isset( $params['post_title'] ) ? $params['post_title'] : '';
-		$imageAlt = isset( $params['image_alt'] ) ? $params['image_alt'] : '';
-		$imageDescription = isset( $params['image_description'] ) ? $params['image_description'] : '';
-		$imageCaption = isset( $params['image_caption'] ) ? $params['image_caption'] : '';
+		$postTitle = isset( $params['post_title'] ) ? $params['post_title'] : null;
+		$imageAlt = isset( $params['image_alt'] ) ? $params['image_alt'] : null;
+		$imageDescription = isset( $params['image_description'] ) ? $params['image_description'] : null;
+		$imageCaption = isset( $params['image_caption'] ) ? $params['image_caption'] : null;
 		$method = isset( $params['method'] ) ? $params['method'] : 'manual';
 		$sync = isset( $params['sync'] ) ? $params['sync'] : false;
 
@@ -471,13 +471,14 @@ class Meow_MFRH_Rest
 		$mediaId = (int)$params['mediaId'];
 		$useVision = isset( $params['ai'] ) ? (bool)$params['ai'] : false;
 		$timeFilter = isset( $params['syncFieldsTimeFilter'] ) ? (int)$params['syncFieldsTimeFilter'] : 0;
+		$onlyEmpty = isset( $params['syncFieldsOnlyEmpty'] ) ? (bool)$params['syncFieldsOnlyEmpty'] : false;
 
 		$post = get_post( $mediaId, ARRAY_A );
 		if ( !$post ) {
 			return new WP_REST_Response( [ 'success' => false, 'message' => 'The media ID is invalid.' ], 200 );
 		}
 
-		do_action( 'mfrh_media_resync', $post, $useVision, $timeFilter );
+		do_action( 'mfrh_media_resync', $post, $useVision, $timeFilter, $onlyEmpty );
 		return new WP_REST_Response( [ 'success' => true, 'data' => [] ], 200 );
 	}
 

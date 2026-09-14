@@ -38,6 +38,7 @@ define( 'MFRH_OPTIONS', [
 	'attached_post_context' => false,
 
 	'manual_sync_fields' => false,
+	'allow_empty_values' => false,
 	'manual_sanitize' => true,
 	'unique_files' => 'none',
 	'force_rename' => false,
@@ -509,8 +510,10 @@ SQL;
 		}
 
 		if ( $all_none_methods ) {
-			$filename = apply_filters( 'mfrh_new_filename', $file['name'], $file['name'], 0 );
-			$file['name'] = $filename;
+			$ext = pathinfo( $file['name'], PATHINFO_EXTENSION );
+			$noext = pathinfo( $file['name'], PATHINFO_FILENAME );
+			$filename = apply_filters( 'mfrh_new_filename', $noext, $noext, 0 );
+			$file['name'] = empty( $ext ) ? $filename : $filename . '.' . $ext;
 
 			return $file;
 		}
@@ -649,7 +652,7 @@ SQL;
 					$filename = $this->engine->new_filename( $title, $original_filename );
 					if ( $filename ) {
 						$this->log( "👌 Title EXIF found." );
-						return apply_filters( 'mfrh_new_filename', $filename, $original_filename, $post_id );
+						return $filename;
 					}
 				} else {
 					$this->log( "😭 Title EXIF not found." );
@@ -663,7 +666,7 @@ SQL;
 				$filename = $this->engine->new_filename( $image_title, $original_filename );
 				if ( $filename ) {
 					$this->log( "👌 Clean Upload found." );
-					return apply_filters( 'mfrh_new_filename', $filename, $original_filename, $post_id );
+					return $filename;
 				}
 				break;
 
@@ -683,7 +686,7 @@ SQL;
 					$filename = $this->engine->new_filename( $ai_filename, $original_filename );
 					if ( $filename ) {
 						$this->log( "👌 Vision AI found." );
-						return apply_filters( 'mfrh_new_filename', $filename, $original_filename, $post_id );
+						return $filename;
 					}
 				} else {
 					$this->log( '⚠️ Vision AI: No filename suggestion returned.' );
@@ -2205,12 +2208,21 @@ SQL;
 
 	function update_media( $id, $postTitle, $imageAlt, $imageDescription, $imageCaption, $method, $sync = false) {
 		$errors = [];
-	
-		if ( !$id || ( !$postTitle && !$imageAlt && !$imageDescription && !$imageCaption ) ) {
-			$errors[] = __( 'The update title or alt parameters are missing.', 'media-file-renamer' );
+		
+		// ( !$postTitle && !$imageAlt && !$imageDescription && !$imageCaption )
+		// We should be able to remove any meta, so no check for empty values
+		if ( !$id ) {
+			$errors[] = __( 'The media ID is missing.', 'media-file-renamer' );
 		}
+
+		// null always means "field not provided". With allow_empty_values, an empty string
+		// means "clear this field" instead of being ignored.
+		$allow_empty = $this->get_option( 'allow_empty_values', false );
+		$has = function ( $value ) use ( $allow_empty ) {
+			return $allow_empty ? $value !== null : (bool)$value;
+		};
 	
-		if ( $postTitle ) {
+		if ( $has( $postTitle ) ) {
 			$previousPostTitle = get_post_field( 'post_title', $id );
 			if ( $previousPostTitle !== $postTitle ) {
 				$result = wp_update_post( [ 'ID' => $id, 'post_title' => $postTitle ], true );
@@ -2229,7 +2241,7 @@ SQL;
 			}
 		}
 	
-		if ( $imageAlt ) {
+		if ( $has( $imageAlt ) ) {
 			$previousImageAlt = get_post_meta( $id, '_wp_attachment_image_alt', true );
 			if ( $previousImageAlt !== $imageAlt ) {
 				$result = update_post_meta( $id, '_wp_attachment_image_alt', $imageAlt );
@@ -2248,7 +2260,7 @@ SQL;
 			}
 		}
 	
-		if ( $imageDescription ) {
+		if ( $has( $imageDescription ) ) {
 			$previousImageDescription = get_post_field( 'post_content', $id );
 			if ( $previousImageDescription !== $imageDescription ) {
 				$result = wp_update_post( [ 'ID' => $id, 'post_content' => $imageDescription ], true );
@@ -2267,7 +2279,7 @@ SQL;
 			}
 		}
 
-		if ( $imageCaption ) {
+		if ( $has( $imageCaption ) ) {
 			$previousImageCaption = get_post_field( 'post_excerpt', $id );
 			if ( $previousImageCaption !== $imageCaption ) {
 				$result = wp_update_post( [ 'ID' => $id, 'post_excerpt' => $imageCaption ], true );

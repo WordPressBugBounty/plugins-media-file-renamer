@@ -3,9 +3,9 @@ Contributors: TigrouMeow
 Tags: rename, file, media, move, seo
 Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.3.0
+Stable tag: 6.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,15 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.3.1 (2026/09/14) =
+* Add: "Allow Empty Values" advanced option so metadata can be manually cleared from the Dashboard.
+* Add: "Empty Only" option in the manual Sync Fields modal to skip fields that already have values.
+* Update: Merged "AI Sync" and "Filename Sync" into a single reworked "Sync Fields" modal.
+* Update: Reworked the on-upload process to no longer rely on filters, avoiding renaming loops.
+* 🎵 Discuss with others about Media File Renamer on [the Discord](https://discord.gg/bHDGh38).
+* 🌴 Keep us motivated with [a little review here](https://wordpress.org/support/plugin/media-file-renamer/reviews/). Thank you!
+* 🥰 If you want to help us, check our [Patreon](https://www.patreon.com/meowapps). Thank you!
 
 = 6.3.0 (2026/08/17) =
 * Update: Meow Apps dashboard now uses the new board layout with a plugins overview and optional AI site analysis.
