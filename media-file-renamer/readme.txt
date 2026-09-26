@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.3.1
+Stable tag: 6.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,11 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.3.2 (2026/09/26) =
+* Update: The license screen now shows the actual reason a license check failed instead of a generic error.
+* Fix: License checks no longer hang the admin for minutes when the license server cannot be reached.
+* Fix: WPML translated media is now renamed instead of the parent media.
 
 = 6.3.1 (2026/09/14) =
 * Add: "Allow Empty Values" advanced option so metadata can be manually cleared from the Dashboard.

@@ -312,14 +312,17 @@ class Meow_MFRH_Core {
 		return defined( 'WPML_MEDIA_VERSION' );
 	}
 
-	// To avoid issue with WPML Media for instance
+	// False when the media is a WPML Media translation (a duplicate post pointing to the same
+	// physical file as its original). Those must not be renamed on their own: the file is shared,
+	// and the wpml parser syncs the path to every translation after the original is renamed.
 	function is_real_media( $id ) {
-		if ( $this->wpml_media_is_installed() ) {
-			global $sitepress;
-			$language = $sitepress->get_default_language( $id );
-			return icl_object_id( $id, 'attachment', true, $language ) == $id;
+		if ( !$this->wpml_media_is_installed() ) {
+			return true;
 		}
-		return true;
+		$info = apply_filters( 'wpml_element_language_details', null,
+			[ 'element_id' => $id, 'element_type' => 'attachment' ] );
+		// No details, or no source language: it's an original, not a translation.
+		return empty( $info->source_language_code );
 	}
 
 	function is_header_image( $id ) {
@@ -1159,6 +1162,13 @@ SQL;
 				return false;
 			}
 
+			// Skip WPML Media translations (the original is the one being renamed)
+			if ( !$this->is_real_media( $id ) ) {
+				delete_post_meta( $id, '_require_file_renaming' );
+				$this->log( "😭 WPML translation, the original will be handled instead." );
+				return false;
+			}
+
 			// Skip header images
 			if ( $this->is_header_image( $id ) ) {
 				delete_post_meta( $id, '_require_file_renaming' );
@@ -1280,7 +1290,9 @@ SQL;
 
 		// Set the '_require_file_renaming', even though it's not really used at this point (but will be,
 		// with the new UI).
-		if ( !get_post_meta( $post['ID'], '_require_file_renaming', true ) && !$output['locked']) {
+		$keep_method = get_post_meta( $post['ID'], '_mfrh_keep_filename', true );
+		$keep_filename = $keep_method && $keep_method === $this->get_option( 'auto_rename' );
+		if ( !$keep_filename && !get_post_meta( $post['ID'], '_require_file_renaming', true ) && !$output['locked']) {
 			add_post_meta( $post['ID'], '_require_file_renaming', true, true );
 		}
 
