@@ -1,15 +1,15 @@
-=== Media File Renamer: Rename for better SEO (AI-Powered) ===
+=== Media File Renamer: Rename Images & Files for SEO (AI-Powered) ===
 Contributors: TigrouMeow
-Tags: rename, file, media, move, seo
+Tags: image seo, media, rename, rename images, seo
 Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.3.2
+Stable tag: 6.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Rename filenames and media metadata for SEO and tidiness. Using AI, manually, in bulk, or in so many other ways!
+Rename image files and media metadata for SEO and tidiness. Using AI, manually, in bulk, or in so many other ways!
 
 == Description ==
 
@@ -67,6 +67,11 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.3.3 (2026/10/03) =
+* Add: New "Sync With Auto Method" option in the Dashboard's Sync Fields, which updates the metadata using the automatic rename method without renaming the file.
+* Update: The On Post Save behavior is now part of the regular Renaming Methods, with its own settings.
+* Fix: Cached post IDs were removed to avoid renaming with an outdated attached post title.
 
 = 6.3.2 (2026/09/26) =
 * Update: The license screen now shows the actual reason a license check failed instead of a generic error.

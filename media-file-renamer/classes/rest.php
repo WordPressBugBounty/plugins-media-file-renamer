@@ -469,7 +469,8 @@ class Meow_MFRH_Rest
 	function rest_sync_fields( $request ) {
 		$params = $request->get_json_params();
 		$mediaId = (int)$params['mediaId'];
-		$useVision = isset( $params['ai'] ) ? (bool)$params['ai'] : false;
+		// mode: 'auto' (as the Auto rename would), 'filename' or 'vision'. 'ai' kept for older clients.
+		$mode = isset( $params['mode'] ) ? (string)$params['mode'] : ( !empty( $params['ai'] ) ? 'vision' : 'filename' );
 		$timeFilter = isset( $params['syncFieldsTimeFilter'] ) ? (int)$params['syncFieldsTimeFilter'] : 0;
 		$onlyEmpty = isset( $params['syncFieldsOnlyEmpty'] ) ? (bool)$params['syncFieldsOnlyEmpty'] : false;
 
@@ -478,7 +479,7 @@ class Meow_MFRH_Rest
 			return new WP_REST_Response( [ 'success' => false, 'message' => 'The media ID is invalid.' ], 200 );
 		}
 
-		do_action( 'mfrh_media_resync', $post, $useVision, $timeFilter, $onlyEmpty );
+		do_action( 'mfrh_media_resync', $post, $mode === 'vision', $timeFilter, $onlyEmpty, $mode );
 		return new WP_REST_Response( [ 'success' => true, 'data' => [] ], 200 );
 	}
 

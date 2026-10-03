@@ -47,6 +47,8 @@ define( 'MFRH_OPTIONS', [
 	'rename_guid' => false,
 	'case_insensitive_check' => false,
 	'rename_on_save' => false,
+	'rename_on_save_post_types' => [ 'post', 'page', 'product' ],
+	'rename_on_save_title_changed' => true,
 
 	'filename_prefix' => '',
 	'filename_suffix' => '',
@@ -230,7 +232,15 @@ class Meow_MFRH_Core {
 			new Meow_MFRH_Updates( $this );
 			do_action( 'mfrh_initialize_parsers' );
 			if ( $this->get_option( 'rename_on_save', false ) ) {
-				add_action( 'save_post', array( $this, 'save_post' ) );
+				// wp_after_insert_post runs after the block editor saved the post meta (needed for the skip toggle).
+				add_action( 'wp_after_insert_post', array( $this, 'save_post' ), 10, 4 );
+				register_post_meta( '', '_mfrh_skip_rename_on_save', [
+					'type' => 'boolean',
+					'single' => true,
+					'show_in_rest' => true,
+					'auth_callback' => function() { return current_user_can( 'edit_posts' ); },
+				] );
+				add_action( 'enqueue_block_editor_assets', array( $this, 'enqueue_rename_on_save_editor' ) );
 			}
 		}
 
@@ -1188,16 +1198,10 @@ SQL;
 			if ( $base_for_rename !== '{VISION}') {
 				$new_filename = $this->engine->new_filename( $base_for_rename, $old_filename, null, $post );
 			} else {
-				// Check if this file was already renamed with AI Vision
-				$history = get_post_meta( $id, '_mfrh_history', true );
-				if ( !empty( $history ) && is_array( $history ) && !empty( $history['filename'] ) ) {
-					$last_filename = end( $history['filename'] );
-					if ( isset( $last_filename['method'] ) && $last_filename['method'] === 'vision' ) {
-						// Already renamed with AI Vision, no longer pending
-						delete_post_meta( $id, '_require_file_renaming' );
-						return false;
-					}
-					
+				// Already renamed with AI Vision, no longer pending
+				if ( $this->last_rename_method( $id ) === 'vision' ) {
+					delete_post_meta( $id, '_require_file_renaming' );
+					return false;
 				}
 				// TODO: This should be probably handled by the UI, not here.
 				$new_filename = 'Auto with AI Vision...';
@@ -1214,7 +1218,7 @@ SQL;
 		if ( !$manual_filename ) {
 			if ( $ideal == $new_filename ) {
 				delete_post_meta( $id, '_require_file_renaming' );
-				$this->log( "😭 Ideal filename." );
+				$this->log( "😭 Ideal filename ($new_filename)." );
 				return false;
 			}
 		}
@@ -1357,13 +1361,47 @@ SQL;
 	 * Added and modified by Jordy Meow
 	 */
 
-	function save_post( $post_id ) {
-		$this->log( '⏰ Event: Save Post' );
+	function enqueue_rename_on_save_editor() {
+		$post_type = get_current_screen() ? get_current_screen()->post_type : null;
+		if ( !in_array( $post_type, (array)$this->get_option( 'rename_on_save_post_types', [] ) ) ) {
+			return;
+		}
+		wp_enqueue_script( 'mfrh-editor', MFRH_URL . 'app/editor.js',
+			[ 'wp-plugins', 'wp-edit-post', 'wp-editor', 'wp-element', 'wp-components', 'wp-data', 'wp-i18n' ], MFRH_VERSION, true );
+		wp_set_script_translations( 'mfrh-editor', MFRH_DOMAIN, MFRH_PATH . 'languages' );
+	}
+
+	function save_post( $post_id, $post = null, $update = false, $post_before = null ) {
+		// Gutenberg (meta boxes request) and WooCommerce can save the same post more than once per request.
+		static $done = [];
+		if ( isset( $done[$post_id] ) || wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+			return;
+		}
+		$post_type = get_post_type( $post_id );
+		if ( !in_array( $post_type, (array)$this->get_option( 'rename_on_save_post_types', [] ) ) ) {
+			return;
+		}
+		$this->log( '⏰ Event: Save Post (' . $post_type . ')' );
+		if ( get_post_meta( $post_id, '_mfrh_skip_rename_on_save', true ) ) {
+			$this->log( "⏭️ Skipped: Rename on Save is paused for this post." );
+			return;
+		}
 		$status = get_post_status( $post_id );
 		if ( !in_array( $status, array( 'publish', 'draft', 'future', 'private' ) ) ) {
 			$this->log( "😭 Not a valid status for renaming: " . $status );
 			return;
 		}
+
+		// Only when the title changed, or when the post is being published for the first time.
+		if ( $post_before && $this->get_option( 'rename_on_save_title_changed', true ) ) {
+			$title_changed = $post_before->post_title !== get_post_field( 'post_title', $post_id );
+			$published = $status === 'publish' && $post_before->post_status !== 'publish';
+			if ( !$title_changed && !$published ) {
+				$this->log( "⏭️ Skipped: the post title didn't change." );
+				return;
+			}
+		}
+		$done[$post_id] = true;
 
 		$args = array( 'post_type' => 'attachment', 'numberposts' => -1, 'post_status' =>'any', 'post_parent' => $post_id );
 		$medias = get_posts( $args );
@@ -1371,7 +1409,12 @@ SQL;
 		if ( $medias ) {
 			
 			foreach ( $medias as $attach ) {
-				$this->engine->rename( $attach->ID, null, false, 'updated' );
+				// AI Vision runs only once per media: an AI name is not stable, it would change on every save.
+				if ( $this->last_rename_method( $attach->ID ) === 'vision' ) {
+					$this->log( "⏭️ Skipped: #{$attach->ID} was already renamed with AI Vision." );
+					continue;
+				}
+				$this->engine->rename( $attach->ID, null, false, 'auto' );
 			}
 		} else {
 			$this->log( "😭 No media found on save. ( The medias might be attached to a prior post parent )." );
@@ -2197,6 +2240,15 @@ SQL;
 	 * @return void
 	 * 
 	 */
+	function last_rename_method( $media_id ) {
+		$history = get_post_meta( $media_id, '_mfrh_history', true );
+		if ( empty( $history['filename'] ) || !is_array( $history['filename'] ) ) {
+			return null;
+		}
+		$last = end( $history['filename'] );
+		return $last['method'] ?? null;
+	}
+
 	function add_to_media_history( $media_id, $params ) {
 		$history = get_post_meta( $media_id, '_mfrh_history', true );
 		if ( !is_array( $history ) ) {
