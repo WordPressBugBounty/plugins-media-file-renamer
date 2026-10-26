@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.3.3
+Stable tag: 6.3.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,17 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 5. Options for the automatic renaming (there are more options than just this).
 
 == Changelog ==
+
+= 6.3.4 (2026/10/26) =
+* Add: Tutorial buttons on the Dashboard and Settings that open the tutorial on meowapps.com.
+* Add: Meow Apps dashboard with Health, Errors and About tabs.
+* Update: Every Renamer page now shares the same header row, with the page links, Tutorial, the Settings wrench and the version line.
+* Update: Settings now show page builder parsers that are missing as "Not installed".
+* Fix: WebP and AVIF copies are kept next to the renamed image instead of being moved out of the uploads folder.
+* Fix: The "All" filter in the Dashboard now lists both locked and unlocked media.
+* Fix: Locked media is no longer included in the counts of the other states.
+* Fix: Rename proposals typed in a row stay in place unless that row's own file changes.
+* Fix: PHP 8.5 deprecation notice in the REST API.
 
 = 6.3.3 (2026/10/03) =
 * Add: New "Sync With Auto Method" option in the Dashboard's Sync Fields, which updates the metadata using the automatic rename method without renaming the file.

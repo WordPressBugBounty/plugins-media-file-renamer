@@ -458,6 +458,9 @@ class Meow_MFRH_Engine {
 		// Update DB: Media and Metadata
 		$upload_dir = wp_upload_dir();
 		$upload_dir['basedir'] = str_replace( '\\', '/', $upload_dir['basedir'] );
+		// The WebP/AVIF siblings need the absolute path: given the relative one below, they were
+		// moved out of uploads (relative to PHP's working directory). Reported on wp.org, 2026-10.
+		$new_abs_filepath = $new_filepath;
 		$new_filepath = str_replace( $upload_dir['basedir'] . '/', '', $new_filepath );
 
         update_attached_file( $id, $new_filepath );
@@ -466,7 +469,7 @@ class Meow_MFRH_Engine {
 		}
 
 		// Rename the main media file in WebP if it exists.
-		$this->rename_alternative_image_formats( $old_filepath, $old_ext, $new_filepath,
+		$this->rename_alternative_image_formats( $old_filepath, $old_ext, $new_abs_filepath,
 			$new_ext, $case_issue, $force_rename, $post );
 
 		clean_post_cache( $id ); // TODO: Would be good to know what this WP function actually does exactly (might be useless, but hopefully it does clear the cache)

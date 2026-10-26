@@ -269,6 +269,7 @@ i18n.SETTINGS = {
   ENABLE: __( 'Enable', 'media-file-renamer' ),
   DISABLE: __( 'Disable', 'media-file-renamer' ),
   DISABLE_PARSER: __( 'Disable Parser', 'media-file-renamer' ),
+  NOT_INSTALLED: __( 'Not installed', 'media-file-renamer' ),
   AI_ENGINE_SYNC: __( '🤖 When syncing using AI Engine, the plugin will use AI to generate <b>each field</b> you selected individually. This is a very powerful feature, but it might take a bit of time to process.', 'media-file-renamer' ),
   POSTS: __( 'Posts', 'media-file-renamer' ),
   POSTS_DESCRIPTION: __( "Update the references to the renamed files in the <strong>content</strong> of the posts (of all types).", 'media-file-renamer' ),

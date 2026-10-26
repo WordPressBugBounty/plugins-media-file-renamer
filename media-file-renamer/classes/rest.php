@@ -559,7 +559,7 @@ class Meow_MFRH_Rest
 
 	function rest_set_lock( $request ) {
 		$params = $request->get_json_params();
-		$lock = (boolean)$params['lock'];
+		$lock = (bool)$params['lock'];
 		$mediaIds = isset( $params['mediaIds'] ) ? (array)$params['mediaIds'] : null;
 		$mediaId = isset( $params['mediaId'] ) ? (int)$params['mediaId'] : null;
 		$data = null;
@@ -662,7 +662,8 @@ class Meow_MFRH_Rest
 			COUNT(DISTINCT CASE WHEN pm_pending.post_id IS NOT NULL THEN p.ID END) as pending,
 			COUNT(DISTINCT CASE WHEN pm_pending.post_id IS NOT NULL AND pm_locked.post_id IS NULL THEN p.ID END) as pending_unlocked,
 			COUNT(DISTINCT CASE WHEN pm_locked.post_id IS NOT NULL THEN p.ID END) as locked,
-			COUNT(DISTINCT CASE WHEN pm_renamed.post_id IS NOT NULL THEN p.ID END) as renamed
+			COUNT(DISTINCT CASE WHEN pm_renamed.post_id IS NOT NULL THEN p.ID END) as renamed,
+			COUNT(DISTINCT CASE WHEN pm_renamed.post_id IS NOT NULL AND pm_locked.post_id IS NULL THEN p.ID END) as renamed_unlocked
 			FROM $wpdb->posts p
 			$joinSql
 			WHERE p.post_type = 'attachment' AND p.post_status = 'inherit' $whereSql";
@@ -675,6 +676,7 @@ class Meow_MFRH_Rest
 			'pending_unlocked' => (int) $result->pending_unlocked,
 			'locked' => (int) $result->locked,
 			'renamed' => (int) $result->renamed,
+			'renamed_unlocked' => (int) $result->renamed_unlocked,
 		];
 	}
 
@@ -783,16 +785,17 @@ class Meow_MFRH_Rest
 		if ( $filterBy === 'pending' ) {
 			return $hide_locked ? $stats['pending_unlocked'] : $stats['pending'];
 		} else if ( $filterBy === 'renamed' ) {
-			return $stats['renamed'];
+			return $hide_locked ? $stats['renamed_unlocked'] : $stats['renamed'];
 		} else if ( $filterBy === 'locked' ) {
 			return $stats['locked'];
 		} else if ( $filterBy === 'unlocked' ) {
 			return $stats['all'] - $stats['locked'];
 		} else if ( $filterBy === 'unrenamed' ) {
-			$unrenamed = $stats['all'] - $stats['renamed'];
 			// If hide_locked is true, only count unlocked unrenamed items
-			return $hide_locked ? ($unrenamed - $stats['locked']) : $unrenamed;
-		} else { // 'all'
+			return $hide_locked
+				? ( $stats['all'] - $stats['locked'] - $stats['renamed_unlocked'] )
+				: ( $stats['all'] - $stats['renamed'] );
+		} else { // 'all' always includes locked media
 			return $stats['all'];
 		}
 	}
@@ -805,12 +808,13 @@ class Meow_MFRH_Rest
 		// Single query for all stats instead of 4 separate queries
 		$stats = $this->count_all_stats( $search, $postType );
 
+		// When hide_locked is on, locked media is excluded from every filter except All/Locked/Unlocked
 		$all = $stats['all'];
-		$pending = $hide_locked ? $stats['pending_unlocked'] : $stats['pending'];
 		$locked = $stats['locked'];
-		$renamed = $stats['renamed'];
 		$unlocked = $all - $locked;
-		$unrenamed = $all - $renamed;
+		$pending = $hide_locked ? $stats['pending_unlocked'] : $stats['pending'];
+		$renamed = $hide_locked ? $stats['renamed_unlocked'] : $stats['renamed'];
+		$unrenamed = $hide_locked ? ( $unlocked - $renamed ) : ( $all - $renamed );
 
 		return new WP_REST_Response( [ 'success' => true, 'data' => array(
 			'all' => $all,
@@ -867,7 +871,7 @@ class Meow_MFRH_Rest
 			$wheres[] = "pm1.meta_value IS NULL";
 		}
 
-		// Hide locked files if hide_locked is true
+		// Hide locked files if hide_locked is true (incl. 'all': these IDs feed bulk actions, which must skip locked media)
 		if ( $hide_locked && $filterBy !== 'locked' && $filterBy !== 'unlocked' ) {
 			$joins[]  = "LEFT JOIN {$wpdb->postmeta} pm2 ON pm2.post_id = p.ID AND pm2.meta_key = '_manual_file_renaming'";
 			$wheres[] = "pm2.meta_value IS NULL";
@@ -937,7 +941,7 @@ class Meow_MFRH_Rest
         }
 
         // Hide locked files in other filters if hide_locked is true
-        if ( $hide_locked && $filterBy !== 'locked' && $filterBy !== 'unlocked' ) {
+        if ( $hide_locked && !in_array( $filterBy, [ 'all', 'locked', 'unlocked' ] ) ) {
             $havingConditions[] = 'locked IS NULL';
         }
 
@@ -1052,6 +1056,7 @@ class Meow_MFRH_Rest
 	}
 
 	function rest_media( $request ) {
+		global $wpdb;
 		$limit = trim( $request->get_param('limit') );
 		$skip = trim( $request->get_param('skip') );
 		$filterBy = trim( $request->get_param('filterBy') );
@@ -1063,6 +1068,9 @@ class Meow_MFRH_Rest
 		$hide_locked = $this->core->get_option( 'hide_locked', true );
 
 		$entries = $this->get_media_status( $skip, $limit, $filterBy, $orderBy, $order, $search, $hide_locked, $postType );
+		if ( !empty( $wpdb->last_error ) ) {
+			return new WP_REST_Response( [ 'success' => false, 'message' => $wpdb->last_error ], 500 );
+		}
 		$total = $this->count_by_filter( $filterBy, $search, $hide_locked, $postType );
 
 		return new WP_REST_Response( [ 'success' => true, 'data' => $entries, 'total' => $total ], 200 );

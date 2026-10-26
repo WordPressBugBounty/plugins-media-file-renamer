@@ -29,8 +29,10 @@ class Meow_MFRH_Admin extends MeowKit_MFRH_Admin {
 	function admin_enqueue_scripts() {
 
 		// Load the scripts
-		$physical_file = MFRH_PATH . '/app/index.js';
-		$cache_buster = file_exists( $physical_file ) ? filemtime( $physical_file ) : MFRH_VERSION;
+		// Both bundles share one version, so it follows whichever changed last: a change that only
+		// touches the vendor bundle (NekoUI) would otherwise keep its old copy in the browser cache.
+		$bundles = array_filter( array( MFRH_PATH . '/app/index.js', MFRH_PATH . '/app/vendor.js' ), 'file_exists' );
+		$cache_buster = $bundles ? max( array_map( 'filemtime', $bundles ) ) : MFRH_VERSION;
 		wp_register_script( 'mfrh-vendor', MFRH_URL . 'app/vendor.js',
 			['wp-element', 'wp-i18n'], $cache_buster
 		);
@@ -55,6 +57,8 @@ class Meow_MFRH_Admin extends MeowKit_MFRH_Admin {
 			'prefix' => MFRH_PREFIX,
 			'domain' => MFRH_DOMAIN,
 			'is_pro' => class_exists( 'MeowPro_MFRH_Core' ),
+			// Installed vs latest version for the header line (common/premium/renewal.php).
+			'version_info' => apply_filters( MFRH_PREFIX . '_meowapps_version_info', null ),
 			'is_registered' => !!$this->is_registered(),
 			'has_seo_engine' => defined( 'MWSEO_VERSION' ) || class_exists( 'Meow_MWSEO_Core' ),
 			'rest_nonce' => wp_create_nonce( 'wp_rest' ),
