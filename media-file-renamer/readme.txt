@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.3.4
+Stable tag: 6.3.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -60,13 +60,15 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 
 == Screenshots ==
 
-1. Type in the name of your media, that is all.
-2. Special screen for bulk actions.
-3. This needs to be renamed.
-4. The little lock and unlock icons.
-5. Options for the automatic renaming (there are more options than just this).
+
+1. Files with meaningless camera names get a clean name built from their title: hover Auto to preview it.
+2. Rename one file or all of them in one click, and undo any rename if you change your mind.
+3. Edit the title, alt text, caption and description of any file without leaving the list.
 
 == Changelog ==
+
+= 6.3.5 (2026/10/30) =
+* Fix: Translated images kept the old file names of their sizes after a rename with WPML.
 
 = 6.3.4 (2026/10/26) =
 * Add: Tutorial buttons on the Dashboard and Settings that open the tutorial on meowapps.com.

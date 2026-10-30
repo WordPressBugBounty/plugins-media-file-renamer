@@ -279,6 +279,8 @@ class Meow_MFRH_Updates {
 
 		// Sync posts sharing the same attachment file
 		$dest = $this->core->get_posts_by_attached_file( $old_filepath, $id );
+		$shared_files = [ _wp_relative_upload_path( $old_filepath ), $meta['_wp_attached_file'] ];
+		$dest = array_unique( array_merge( $dest, $this->get_wpml_translations_sharing_file( $id, $shared_files ) ) );
 		foreach ( $dest as $item ) {
 			if ( get_post_type( $item ) != 'attachment' ) continue;
 
@@ -301,7 +303,41 @@ class Meow_MFRH_Updates {
 					'meta_key' => $j
 				) );
 			}
+			clean_post_cache( $item ); // The direct queries above bypass the meta cache.
 		}
+	}
+
+	/**
+	 * The WPML translations of an attachment that still use its files.
+	 * WPML Media gives each language its own attachment, all on the same files, and copies the new
+	 * _wp_attached_file to them as soon as it changes. The lookup by old path then misses them, so
+	 * their sizes kept the old file names (broken images on translated pages, reported by the WPML
+	 * compatibility team on 6.3.4). A translation with its own file is left alone.
+	 * @param int $id
+	 * @param array $files Relative paths the translation may have (old and new)
+	 * @return array An array of IDs
+	 */
+	function get_wpml_translations_sharing_file( $id, $files ) {
+		$parsers = $this->core->get_option( 'parsers', [] );
+		if ( !defined( 'ICL_SITEPRESS_VERSION' ) || ( isset( $parsers['wpml']['enabled'] ) && !$parsers['wpml']['enabled'] ) ) {
+			return [];
+		}
+		$trid = apply_filters( 'wpml_element_trid', null, $id, 'post_attachment' );
+		if ( empty( $trid ) ) {
+			return [];
+		}
+		$translations = apply_filters( 'wpml_get_element_translations', null, $trid, 'post_attachment' );
+		$ids = [];
+		foreach ( (array) $translations as $translation ) {
+			$tr_id = isset( $translation->element_id ) ? (int) $translation->element_id : 0;
+			if ( !$tr_id || $tr_id === (int) $id ) {
+				continue;
+			}
+			if ( in_array( get_post_meta( $tr_id, '_wp_attached_file', true ), $files, true ) ) {
+				$ids[] = $tr_id;
+			}
+		}
+		return $ids;
 	}
 
 
