@@ -1767,8 +1767,10 @@ SQL;
 		$meta = wp_get_attachment_metadata( $id );
 
 		if ( $meta ) {
+			// Rebuilt rather than str_replaced: from or to the uploads root, one of the
+			// directories is empty and the replace silently did nothing (broken srcset).
 			if ( isset( $meta['file'] ) && !empty( $meta['file'] ) )
-				$meta['file'] = $this->str_replace( $old_directory, $new_directory, $meta['file'] );
+				$meta['file'] = ltrim( trailingslashit( $new_directory ) . basename( $meta['file'] ), '/' );
 			if ( isset( $meta['url'] ) && !empty( $meta['url'] ) && strlen( $meta['url'] ) > 4 )
 				$meta['url'] = $this->str_replace( $old_directory, $new_directory, $meta['url'] );
 			//wp_update_attachment_metadata( $id, $meta );

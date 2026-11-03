@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.3.5
+Stable tag: 6.3.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -14,6 +14,8 @@ Rename image files and media metadata for SEO and tidiness. Using AI, manually, 
 == Description ==
 
 **Media File Renamer is the smart, AI-powered solution for renaming your WordPress media files.** It automatically gives your media files and their metadata (Title, ALT Text, Description) clean, SEO-friendly names. Whether you're uploading new files or updating your entire media library, this plugin makes it easy.
+
+https://www.youtube.com/watch?v=9nT-KnJB7vo
 
 It's the perfect companion to [SEO Engine](https://wordpress.org/plugins/seo-engine/) for a complete SEO workflow! Explore [our official site](https://meowapps.com/media-file-renamer/) to get started.
 
@@ -66,6 +68,9 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 3. Edit the title, alt text, caption and description of any file without leaving the list.
 
 == Changelog ==
+
+= 6.3.6 (2026/11/03) =
+* Fix: Keep the correct file path in the metadata when moving a file from or to the uploads root.
 
 = 6.3.5 (2026/10/30) =
 * Fix: Translated images kept the old file names of their sizes after a rename with WPML.
