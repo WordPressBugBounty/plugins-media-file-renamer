@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.3.6
+Stable tag: 6.3.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,6 +68,12 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 3. Edit the title, alt text, caption and description of any file without leaving the list.
 
 == Changelog ==
+
+= 6.3.7 (2026/11/10) =
+* Add: Manual Bulk rename with CSV import and a template generator, available in the Dashboard.
+* Add: AI Engine is now shown as an On / Off switch in the settings, with a download icon to install it when missing.
+* Update: Hovering the AI Engine switch lists its default models by their nice names, and clicking it opens the AI Engine dashboard.
+* Update: Synced the common Meow Apps library.
 
 = 6.3.6 (2026/11/03) =
 * Fix: Keep the correct file path in the metadata when moving a file from or to the uploads root.

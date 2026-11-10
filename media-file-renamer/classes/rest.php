@@ -151,6 +151,21 @@ class Meow_MFRH_Rest
 				'permission_callback' => array( $this->core, 'can_access_features' ),
 				'callback' => array( $this, 'rest_rename' )
 			) );
+			register_rest_route( $this->namespace, '/bulk_rename_template', array(
+				'methods' => 'GET',
+				'permission_callback' => array( $this, 'can_bulk_rename' ),
+				'callback' => array( $this, 'rest_bulk_rename_template' )
+			) );
+			register_rest_route( $this->namespace, '/bulk_rename_preview', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this, 'can_bulk_rename' ),
+				'callback' => array( $this, 'rest_bulk_rename_preview' )
+			) );
+			register_rest_route( $this->namespace, '/bulk_rename_row', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this, 'can_bulk_rename' ),
+				'callback' => array( $this, 'rest_bulk_rename_row' )
+			) );
 			register_rest_route( $this->namespace, '/move', array(
 				'methods' => 'POST',
 				'permission_callback' => array( $this->core, 'can_access_features' ),
@@ -534,6 +549,119 @@ class Meow_MFRH_Rest
 		catch ( Exception $e ) {
 			return new WP_REST_Response( [ 'success' => false, 'message' => $e->getMessage() ], 200 );
 		}
+	}
+
+	// Bulk Rename is a Pro feature.
+	function can_bulk_rename() {
+		return $this->core->can_access_features() && isset( $this->core->admin ) && $this->core->admin->is_registered();
+	}
+
+	// Every media file, as its path relative to the uploads directory (unique, unlike the basename).
+	function rest_bulk_rename_template( $request ) {
+		global $wpdb;
+		$files = $wpdb->get_col( "SELECT pm.meta_value FROM $wpdb->postmeta pm
+			INNER JOIN $wpdb->posts p ON p.ID = pm.post_id
+			WHERE p.post_type = 'attachment' AND pm.meta_key = '_wp_attached_file'
+			ORDER BY p.ID ASC" );
+		return new WP_REST_Response( [ 'success' => true, 'data' => $files ], 200 );
+	}
+
+	// Resolves a CSV row to a media and predicts the final filename, without renaming anything.
+	// Current name is the uploads-relative path, or a bare filename if only one media uses it.
+	function bulk_rename_check( $current, $filename ) {
+		global $wpdb;
+		$current = ltrim( str_replace( '\\', '/', trim( (string)$current ) ), '/' );
+		$filename = trim( (string)$filename );
+		$res = [ 'mediaId' => null, 'folder' => null, 'proposed' => null, 'error' => null ];
+
+		if ( $current === '' ) {
+			$res['error'] = __( 'The current name is empty.', 'media-file-renamer' );
+			return $res;
+		}
+		if ( $filename === '' ) {
+			$res['error'] = __( 'The new name is empty.', 'media-file-renamer' );
+			return $res;
+		}
+
+		$sql = "SELECT pm.post_id FROM $wpdb->postmeta pm
+			INNER JOIN $wpdb->posts p ON p.ID = pm.post_id AND p.post_type = 'attachment'
+			WHERE pm.meta_key = '_wp_attached_file' AND ";
+		$ids = $wpdb->get_col( $wpdb->prepare( $sql . "pm.meta_value = %s", $current ) );
+		if ( empty( $ids ) && strpos( $current, '/' ) === false ) {
+			$ids = $wpdb->get_col( $wpdb->prepare( $sql . "pm.meta_value LIKE %s", '%/' . $wpdb->esc_like( $current ) ) );
+		}
+		if ( empty( $ids ) ) {
+			$res['error'] = __( 'No media with this name was found in the Media Library.', 'media-file-renamer' );
+			return $res;
+		}
+		if ( count( $ids ) > 1 ) {
+			$res['error'] = __( 'Several media use this filename. Use the full path from the template.', 'media-file-renamer' );
+			return $res;
+		}
+
+		$mediaId = (int)$ids[0];
+		$res['mediaId'] = $mediaId;
+		$folder = dirname( get_post_meta( $mediaId, '_wp_attached_file', true ) );
+		$res['folder'] = $folder === '.' ? '' : $folder;
+		$filepath = get_attached_file( $mediaId );
+		if ( !$filepath || !file_exists( $filepath ) ) {
+			$res['error'] = __( 'The file is missing on the server.', 'media-file-renamer' );
+			return $res;
+		}
+
+		// Same logic as check_attachment() for a manual filename.
+		$old = basename( $filepath );
+		if ( $this->core->get_option( 'manual_sanitize', true ) ) {
+			$proposed = $this->core->engine->new_filename( $filename, $old, null, get_post( $mediaId, ARRAY_A ) );
+		}
+		else {
+			$proposed = pathinfo( $filename, PATHINFO_EXTENSION ) ? $filename : $filename . '.' . pathinfo( $old, PATHINFO_EXTENSION );
+		}
+		$res['proposed'] = $proposed;
+
+		if ( $proposed === $old ) {
+			$res['error'] = __( 'The media already has this name.', 'media-file-renamer' );
+		}
+		else if ( strtolower( $proposed ) !== strtolower( $old ) && file_exists( trailingslashit( dirname( $filepath ) ) . $proposed ) ) {
+			$res['error'] = __( 'Another file already uses this name.', 'media-file-renamer' );
+		}
+		return $res;
+	}
+
+	function rest_bulk_rename_preview( $request ) {
+		$params = $request->get_json_params();
+		$rows = isset( $params['rows'] ) && is_array( $params['rows'] ) ? $params['rows'] : [];
+		$data = [];
+		foreach ( $rows as $row ) {
+			$data[] = $this->bulk_rename_check( $row['current'] ?? '', $row['filename'] ?? '' );
+		}
+		return $this->create_rest_response( [ 'success' => true, 'data' => $data ], 200 );
+	}
+
+	// Manually renames one media from a CSV row.
+	function rest_bulk_rename_row( $request ) {
+		$params = $request->get_json_params();
+		$filename = isset( $params['filename'] ) ? trim( (string)$params['filename'] ) : '';
+		$check = $this->bulk_rename_check( $params['current'] ?? '', $filename );
+		if ( $check['error'] ) {
+			return $this->create_rest_response( [ 'success' => false, 'message' => $check['error'] ], 200 );
+		}
+
+		$mediaId = $check['mediaId'];
+		$before = get_post_meta( $mediaId, '_wp_attached_file', true );
+		try {
+			$this->core->engine->rename( $mediaId, $filename, false, 'manual' );
+		}
+		catch ( Exception $e ) {
+			return $this->create_rest_response( [ 'success' => false, 'message' => $e->getMessage() ], 200 );
+		}
+		$after = get_post_meta( $mediaId, '_wp_attached_file', true );
+		if ( $after === $before ) {
+			return $this->create_rest_response( [ 'success' => false,
+				'message' => __( 'The media could not be renamed. Enable the logs to know more.', 'media-file-renamer' ) ], 200 );
+		}
+
+		return $this->create_rest_response( [ 'success' => true, 'mediaId' => $mediaId, 'data' => basename( $after ) ], 200 );
 	}
 
 	function rest_move( $request ) {

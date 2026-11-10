@@ -30,6 +30,7 @@ define( 'MFRH_OPTIONS', [
 	'undo' => false,
 	'move' => false,
 	'manual_rename' => true,
+	'manual_bulk_rename' => false,
 	'manual_rename_ai' => false,
 	'vision_rename_ai' => false,
 	'vision_rename_ai_cache' => 60 * 60 * 24,
@@ -2473,6 +2474,7 @@ SQL;
 			'sync_media_title',
 			'force_rename',
 			'logsql',
+			'manual_bulk_rename',
 		);
 	}
 
