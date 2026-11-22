@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.3.7
+Stable tag: 6.3.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,6 +68,17 @@ If you only need a simple field to modify the filename, you can also try [Phoeni
 3. Edit the title, alt text, caption and description of any file without leaving the list.
 
 == Changelog ==
+
+= 6.3.8 (2026/11/22) =
+* Add: Parts of the original filename in the settings, click a part and drag it into the new filename, with exact or similar matching.
+* Add: Easy tab for the filename rules, with Replace words and a color-coded preview.
+* Add: Set Up with AI, which proposes the filename rules from a few of your files and your site's context.
+* Update: Errors now show in a modal instead of the browser alert, and AI provider messages are made readable.
+* Fix: Saving settings without changing anything reported an unknown error.
+* Fix: Undo now restores the exact original filename, it was lowercased and passed through the filename rules again.
+* 🎵 Discuss with others about Media File Renamer on [the Discord](https://discord.gg/bHDGh38).
+* 🌴 Keep us motivated with [a little review here](https://wordpress.org/support/plugin/media-file-renamer/reviews/). Thank you!
+* 🥰 If you want to help us, check our [Patreon](https://www.patreon.com/meowapps). Thank you!
 
 = 6.3.7 (2026/11/10) =
 * Add: Manual Bulk rename with CSV import and a template generator, available in the Dashboard.

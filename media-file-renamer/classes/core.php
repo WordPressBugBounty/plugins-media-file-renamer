@@ -55,6 +55,7 @@ define( 'MFRH_OPTIONS', [
 	'filename_suffix' => '',
 	'filename_replace' => [],
 	'filename_replace_regex' => [],
+	'filename_parts' => [],
 
 	'acf_field_name' => false,
 	'images_only' => false,
@@ -211,17 +212,11 @@ class Meow_MFRH_Core {
 		add_action( 'attachment_updated', array( $this, 'attachment_fields_to_save' ), 10, 3 );
 		add_action( 'updated_post_meta', array( $this, 'on_alt_text_updated' ), 10, 4 );
 
-		if ( $this->get_option( 'filename_prefix', '' ) != '' || $this->get_option( 'filename_suffix', '' ) != '' ) {
-			add_filter( 'mfrh_new_filename', [ $this, 'add_prefix_suffix' ], 10, 3 );
-		}
-
-		if ( !empty( $this->get_option( 'filename_replace', [] ) ) ) {
-			add_filter( 'mfrh_new_filename', [ $this, 'replace_filename' ], 10, 3 );
-		}
-		
-		if ( !empty( $this->get_option( 'filename_replace_regex', [] ) ) ) {
-			add_filter( 'mfrh_new_filename', [ $this, 'replace_filename_regex' ], 10, 3 );
-		}
+		// Always hooked, since each rule does nothing when empty: the AI rules preview needs them
+		// to run with rules that are not saved yet (see $rules_override).
+		add_filter( 'mfrh_new_filename', [ $this, 'add_prefix_suffix' ], 10, 3 );
+		add_filter( 'mfrh_new_filename', [ $this, 'replace_filename' ], 10, 3 );
+		add_filter( 'mfrh_new_filename', [ $this, 'replace_filename_regex' ], 10, 3 );
 		
 		// Only for REST
 		if ( $this->is_rest ) {
@@ -1036,57 +1031,227 @@ SQL;
 
 	/****************************************************************************/
 
+	// Proposed rules (same keys as the options) used instead of the saved ones, only while
+	// the AI rules preview computes its examples.
+	public $rules_override = null;
+
+	function rule_option( $name, $default ) {
+		if ( is_array( $this->rules_override ) && array_key_exists( $name, $this->rules_override ) ) {
+			return $this->rules_override[ $name ];
+		}
+		return $this->get_option( $name, $default );
+	}
+
+	// The parts taken from the original filename: {0} is the whole of it, then {1}, {2}... one per
+	// pattern of filename_parts, in order: its first group, or its whole match when it has no group,
+	// or nothing when it does not match. One value per pattern keeps the numbering stable, whatever
+	// matches or not. Matched against the filename before the very first rename, kept in
+	// _original_filename, so a media renamed again (or a pending check after a rename) still finds
+	// the same parts: the current filename would no longer contain them.
+	function original_captures( $old, $media ) {
+		$original = is_array( $media ) && !empty( $media['ID'] ) ? get_post_meta( $media['ID'], '_original_filename', true ) : '';
+		$original = !empty( $original ) ? mfrh_pathinfo( $original )['filename'] : (string)$old;
+		$original = preg_replace( '/-scaled$/', '', $original );
+		$captures = [ $original ];
+		foreach ( (array)$this->rule_option( 'filename_parts', [] ) as $pattern ) {
+			$found = @preg_match( '/' . str_replace( '/', '\/', $pattern ) . '/', $original, $matches );
+			$captures[] = $found ? ( isset( $matches[1] ) ? $matches[1] : $matches[0] ) : '';
+		}
+		// Lowercased like the rest of the generated filename, so a captured LT0300B does not stand out.
+		// mbstring is not always there: the engine falls back the same way.
+		return array_map( function_exists( 'mb_strtolower' ) ? 'mb_strtolower' : 'strtolower', $captures );
+	}
+
+	// Replaces {0}, {1}... with the captured parts, or nothing when the original did not match.
+	// ${1} is left alone: in a regex replacement, it is that regex's own backreference.
+	function fill_placeholders( $text, $old, $media ) {
+		if ( strpos( (string)$text, '{' ) === false ) return $text;
+		$captures = $this->original_captures( $old, $media );
+		return preg_replace_callback( '/(?<!\$)\{(\d+)\}/', function( $m ) use ( $captures ) {
+			return isset( $captures[ (int)$m[1] ] ) ? $captures[ (int)$m[1] ] : '';
+		}, $text );
+	}
+
+	// Asks AI Engine for the filename rules matching what the user describes, from a few of the
+	// site's media, and previews them on those media. Nothing is saved: the user applies them.
+	function ai_rules( $instruction, $ids = [] ) {
+		global $mwai;
+		if ( is_null( $mwai ) ) {
+			throw new Exception( __( 'AI Engine is required to generate the rules.', 'media-file-renamer' ) );
+		}
+		$instruction = trim( (string)$instruction );
+		if ( $instruction === '' ) {
+			throw new Exception( __( 'Describe how the filenames should look.', 'media-file-renamer' ) );
+		}
+		$samples = $this->rules_samples( $ids );
+		if ( empty( $samples ) ) {
+			throw new Exception( __( 'There is no media to learn from.', 'media-file-renamer' ) );
+		}
+		$lines = array_map( fn( $s ) => "- original: {$s['original']} | attached post: {$s['parent']} | media title: {$s['title']} | base name: {$s['base']}", $samples );
+		$context = $this->site_context();
+		$about = implode( '; ', array_map( fn( $k, $v ) => "{$k}: {$v}", array_keys( $context ), $context ) );
+		$methods = implode( ', then ', array_filter( [ $this->method, $this->method_secondary, $this->method_tertiary ], fn( $m ) => $m && $m !== 'none' ) );
+		$prompt = "You configure the filename rules of Media File Renamer, a WordPress plugin.\n"
+			. "For each media, the plugin builds a base name with its rename method ({$methods}), turns it into a lowercase slug with hyphens, then applies these rules in this order:\n"
+			. "1. filename_prefix and filename_suffix: text added before and after.\n"
+			. "2. filename_replace: list of \"search=>replace\" plain text replacements.\n"
+			. "3. filename_replace_regex: list of \"pattern=>replacement\" PHP regex replacements, without delimiters. \${1} in a replacement refers to that pattern's own groups.\n"
+			. "filename_parts is a list of PHP regexes (without delimiters, case-sensitive unless they start with (?i)), each matched against the ORIGINAL filename without its extension. Each one defines a part: its first group, its whole match without a group, or empty when it does not match. Parts are lowercased. The entries of filename_parts are only regexes, never tags.\n"
+			. "The parts are used in the other rules as tags: {1} for the first entry of filename_parts, {2} for the second, and so on; {0} is the whole original filename and needs no entry.\n"
+			. "Example: to add the product code of 'acme-shoe-SW180-2' after the name, filename_parts is [\"(?i)([a-z]+\\d+)\"] and filename_suffix is \"-{1}\".\n"
+			. "Never put a comma inside a filename_replace or filename_replace_regex entry. Only set what is needed and leave the rest empty.\n\n"
+			. "About the site: " . $about . "\n"
+			. "Unless the user says otherwise, the brand is the site name, and any text you add is written in the site's language.\n\n"
+			. "Media from this site:\n" . implode( "\n", $lines ) . "\n\n"
+			. "What the user wants: {$instruction}\n\n"
+			. 'Reply with this JSON: {"filename_parts": [], "filename_prefix": "", "filename_suffix": "", "filename_replace": [], "filename_replace_regex": [], "explanation": "one or two short sentences for the user"}';
+		// A model sometimes slips (a tag where a regex belongs): one more try, told exactly what was
+		// wrong, fixes it far more often than handing the error to the user.
+		for ( $attempt = 1; ; $attempt++ ) {
+			$json = $mwai->simpleJsonQuery( $prompt, null, null, [ 'scope' => 'renamer' ] );
+			$json = is_array( $json ) ? $json : [];
+			try {
+				$rules = $this->sanitize_rules( $json );
+				break;
+			}
+			catch ( Exception $e ) {
+				if ( $attempt >= 2 ) throw $e;
+				$prompt .= "\n\nYour previous reply was refused: " . $e->getMessage() . " Fix it.";
+			}
+		}
+		return [
+			'rules' => $rules,
+			'explanation' => (string)( $json['explanation'] ?? '' ),
+			'preview' => $this->preview_rules( $rules, $samples ),
+		];
+	}
+
+	// What the AI should know about the site to name its files: the brand (usually the site name),
+	// the language the names should be written in, and whether the media are mostly products.
+	function site_context() {
+		$locale = get_locale();
+		$language = class_exists( 'Locale' ) ? Locale::getDisplayLanguage( $locale, 'en' ) : $locale;
+		return array_filter( [
+			'name' => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
+			'tagline' => wp_specialchars_decode( get_bloginfo( 'description' ), ENT_QUOTES ),
+			'domain' => wp_parse_url( home_url(), PHP_URL_HOST ),
+			'language' => $language,
+			'shop' => class_exists( 'WooCommerce' ) ? 'WooCommerce' : '',
+		] );
+	}
+
+	// The media the AI learns from, which the user sees first: the given ones, so the rules are made
+	// from the exact files on screen, or a random few, attached ones first since most methods build
+	// their name from the attached post.
+	// ponytail: ORDER BY RAND() over the attachments is fine for tens of thousands; pick by ID ranges if it gets slow.
+	function rules_samples( $ids = [], $limit = 8 ) {
+		global $wpdb;
+		$ids = array_slice( array_filter( array_map( 'intval', (array)$ids ) ), 0, 20 );
+		if ( empty( $ids ) ) {
+			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' ORDER BY ( post_parent > 0 ) DESC, RAND() LIMIT %d", $limit ) );
+		}
+		$samples = [];
+		foreach ( $ids as $id ) {
+			$post = get_post( $id, ARRAY_A );
+			$file = get_attached_file( $id );
+			if ( empty( $post ) || empty( $file ) ) continue;
+			$current = mfrh_pathinfo( $file )['basename'];
+			$original = get_post_meta( $id, '_original_filename', true );
+			if ( $post['post_type'] !== 'attachment' ) continue;
+			$samples[] = [
+				'id' => (int)$id,
+				'post' => $post,
+				'file' => $file,
+				'current' => $current,
+				'original' => !empty( $original ) ? $original : $current,
+				'parent' => $post['post_parent'] ? get_the_title( $post['post_parent'] ) : '',
+				'title' => $post['post_title'],
+				// Preview mode, so the Vision method returns {VISION} instead of calling the AI for each media.
+				'base' => (string)( $this->pro ? apply_filters( 'mfrh_base_for_rename', $post['post_title'], $id, true, [] ) : $this->core_base_for_rename( $id, [] ) ),
+			];
+		}
+		return $samples;
+	}
+
+	// The filename each sample would get with these rules (null: the saved ones), computed like a real rename.
+	function preview_rules( $rules, $samples ) {
+		$this->rules_override = $rules;
+		try {
+			return array_map( function( $s ) {
+				$skip = $s['base'] === '' || $s['base'] === '{VISION}';
+				return [
+					'id' => $s['id'],
+					'parent' => $s['parent'],
+					'current' => $s['current'],
+					'original' => $s['original'],
+					'new' => $skip ? null : $this->engine->new_filename( $s['base'], $s['file'], null, $s['post'] ),
+				];
+			}, $samples );
+		}
+		finally {
+			$this->rules_override = null;
+		}
+	}
+
+	// Rules coming from the AI: only the expected keys and types, and every regex must compile.
+	function sanitize_rules( $rules ) {
+		$list = function( $value ) {
+			$value = is_array( $value ) ? $value : ( $value === '' || $value === null ? [] : [ $value ] );
+			return array_values( array_filter( array_map( 'strval', $value ), fn( $v ) => trim( $v ) !== '' ) );
+		};
+		$clean = [
+			'filename_parts' => $list( $rules['filename_parts'] ?? [] ),
+			'filename_prefix' => (string)( $rules['filename_prefix'] ?? '' ),
+			'filename_suffix' => (string)( $rules['filename_suffix'] ?? '' ),
+			'filename_replace' => $list( $rules['filename_replace'] ?? [] ),
+			'filename_replace_regex' => $list( $rules['filename_replace_regex'] ?? [] ),
+		];
+		$patterns = array_merge( $clean['filename_parts'], array_map( fn( $r ) => explode( '=>', $r )[0], $clean['filename_replace_regex'] ) );
+		foreach ( $patterns as $pattern ) {
+			if ( @preg_match( '/' . str_replace( '/', '\/', $pattern ) . '/', '' ) === false ) {
+				throw new Exception( sprintf( __( 'The AI proposed an invalid regex: %s. Try again or rephrase.', 'media-file-renamer' ), $pattern ) );
+			}
+		}
+		return $clean;
+	}
+
 	function add_prefix_suffix( $new, $old, $post ) {
-
-		$prefix = $this->get_option( 'filename_prefix', '' );
-		$suffix = $this->get_option( 'filename_suffix', '' );
-		
-		if ( $prefix != '' ) {
-			$new = $prefix . $new;
-		}
-
-		if ( $suffix != '' ) {
-			$new = $new . $suffix;
-		}
-		
-		return $new;
+		$prefix = $this->fill_placeholders( $this->rule_option( 'filename_prefix', '' ), $old, $post );
+		$suffix = $this->fill_placeholders( $this->rule_option( 'filename_suffix', '' ), $old, $post );
+		return $prefix . $new . $suffix;
 	}
 
 	function replace_filename( $new, $old, $post ) {
-		$replacements = $this->get_option( 'filename_replace', [] );
-
+		$replacements = $this->rule_option( 'filename_replace', [] );
 		if ( !empty( $replacements ) ) {
 			foreach ( $replacements as $replacement ) {
 				$replacement = explode( '=>', $replacement );
 				if ( count( $replacement ) == 2 ) {
-					$new = str_replace( $replacement[0], $replacement[1], $new );
+					$new = str_replace( $replacement[0], $this->fill_placeholders( $replacement[1], $old, $post ), $new );
 				}
 			}
 		}
-
 		return $new;
 	}
 
 	function replace_filename_regex( $new, $old, $post ) {
-		$replacements = $this->get_option( 'filename_replace_regex', [] );
-
+		$replacements = $this->rule_option( 'filename_replace_regex', [] );
 		if ( !empty( $replacements ) ) {
 			foreach ( $replacements as $replacement ) {
 				$replacement = explode( '=>', $replacement );
 				if ( count( $replacement ) == 2 ) {
 					$pattern = '/' . str_replace( '/', '\/', $replacement[0] ) . '/';
-					$new = preg_replace( $pattern, $replacement[1], $new );
+					$new = preg_replace( $pattern, $this->fill_placeholders( $replacement[1], $old, $post ), $new );
 				}
 			}
 		}
-
 		return $new;
 	}
 
 
 	// Return false if everything is fine, otherwise return true with an output
 	// which details the conditions and results about the renaming.
-	function check_attachment( $post, &$output = array(), $manual_filename = null, $force_rename = false, $preview = true, $skipped_methods = [] ) {
+	function check_attachment( $post, &$output = array(), $manual_filename = null, $force_rename = false, $preview = true, $skipped_methods = [], $undo = false ) {
 		$id = $post['ID'];
 		$old_filepath = get_attached_file( $id );
 
@@ -1148,7 +1313,9 @@ SQL;
 		else if ( !empty( $manual_filename ) ) {
 			// Through the new_filename function to rename when the sanitize option is enabled.
 			// To validate the filename (i.g. space will be “-“), use the $manual_filename as the first argument $text.
-			$new_filename = $this->get_option( 'manual_sanitize', true )
+			// An undo puts back the exact filename the media had before its first rename: sanitizing
+			// it would lowercase it, and the filename rules (prefix, parts...) would rename it again.
+			$new_filename = !$undo && $this->get_option( 'manual_sanitize', true )
 				? $this->engine->new_filename( $manual_filename, $old_filename, null, $post )
 				: $manual_filename;
 
@@ -2510,7 +2677,10 @@ SQL;
 
 
 	function update_options( $options ) {
-		if ( !update_option( $this->option_name, $options, false ) ) {
+		// update_option() also returns false when nothing changed, which is not a failure:
+		// saving the same settings again (a piece dropped back where it was) must just succeed.
+		// Strict: a loose comparison would take false for 0 or true for "1", and skip a real change.
+		if ( get_option( $this->option_name ) !== $options && !update_option( $this->option_name, $options, false ) ) {
 			return false;
 		}
 		list($options, $result, $message) = $this->sanitize_options();

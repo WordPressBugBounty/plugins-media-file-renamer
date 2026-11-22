@@ -207,12 +207,12 @@ class Meow_MFRH_Engine {
 		$force_rename = $this->core->get_option( 'force_rename', false );
 
 		// Check attachment
-		$need_rename = $this->core->check_attachment( $post, $output, $manual_filename, $force_rename, false );
+		$need_rename = $this->core->check_attachment( $post, $output, $manual_filename, $force_rename, false, [], $undo );
 		
 		if ( $force_rename &&  is_null( $output['proposed_filename'] ) ) {
 			$this->core->log( "🚫 Force Rename is enabled, but the proposed filename is null. Generating a new one without force rename." );
 			$force_rename = false;
-			$need_rename = $this->core->check_attachment( $post, $output, $manual_filename, $force_rename, false );
+			$need_rename = $this->core->check_attachment( $post, $output, $manual_filename, $force_rename, false, [], $undo );
 		}
 
 		if ( !$need_rename ) {

@@ -60,6 +60,16 @@ class Meow_MFRH_Rest
 				'permission_callback' => array( $this->core, 'can_access_features' ),
 				'callback' => array( $this, 'rest_test_rules' )
 			) );
+			register_rest_route( $this->namespace, '/rules_samples', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this->core, 'can_access_features' ),
+				'callback' => array( $this, 'rest_rules_samples' )
+			) );
+			register_rest_route( $this->namespace, '/ai_rules', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this->core, 'can_access_features' ),
+				'callback' => array( $this, 'rest_ai_rules' )
+			) );
 
 
 		}
@@ -1262,6 +1272,29 @@ class Meow_MFRH_Rest
 		}
 		catch ( Exception $e ) {
 			return new WP_REST_Response([ 'success' => false, 'message' => $e->getMessage() ], 500 );
+		}
+	}
+
+	// A few media and the names the saved rules give them, shown before asking the AI anything.
+	function rest_rules_samples( $request ) {
+		try {
+			$params = $request->get_json_params();
+			$samples = $this->core->rules_samples( isset( $params['ids'] ) ? $params['ids'] : [] );
+			return new WP_REST_Response( [ 'success' => true, 'data' => $this->core->preview_rules( null, $samples ), 'context' => $this->core->site_context() ], 200 );
+		}
+		catch ( Exception $e ) {
+			return new WP_REST_Response( [ 'success' => false, 'message' => $e->getMessage() ], 200 );
+		}
+	}
+
+	function rest_ai_rules( $request ) {
+		try {
+			$params = $request->get_json_params();
+			$res = $this->core->ai_rules( isset( $params['instruction'] ) ? $params['instruction'] : '', isset( $params['ids'] ) ? $params['ids'] : [] );
+			return new WP_REST_Response( [ 'success' => true, 'data' => $res ], 200 );
+		}
+		catch ( Exception $e ) {
+			return new WP_REST_Response( [ 'success' => false, 'message' => $e->getMessage() ], 200 );
 		}
 	}
 
